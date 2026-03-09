@@ -44,7 +44,8 @@ make_udf_function!(width_bucket::SparkWidthBucket, width_bucket);
 make_udf_function!(trigonometry::SparkCsc, csc);
 make_udf_function!(trigonometry::SparkSec, sec);
 make_udf_function!(negative::SparkNegative, negative);
-make_udf_function!(bin::SparkBin, bin, ceil);
+make_udf_function!(bin::SparkBin, bin);
+make_udf_function!(ceil::SparkCeil, ceil);
 
 pub mod expr_fn {
     use datafusion_functions::export_functions;

@@ -246,3 +246,51 @@ query I
 SELECT ceil(NULL::bigint);
 ----
 NULL
+
+# Test Decimal128 with scale > 0 (returns Decimal with scale 0)
+query R
+SELECT ceil(12.34::decimal(4,2));
+----
+13
+
+query R
+SELECT ceil(-12.34::decimal(4,2));
+----
+-12
+
+query R
+SELECT ceil(99.99::decimal(4,2));
+----
+100
+
+query R
+SELECT ceil(0.01::decimal(3,2));
+----
+1
+
+query R
+SELECT ceil(-0.01::decimal(3,2));
+----
+0
+
+query R
+SELECT ceil(5.00::decimal(3,2));
+----
+5
+
+# Test Decimal128 with scale = 0 (passthrough)
+query R
+SELECT ceil(123::decimal(5,0));
+----
+123
+
+query R
+SELECT ceil(-456::decimal(5,0));
+----
+-456
+
+# Test Decimal128 NULL
+query R
+SELECT ceil(NULL::decimal(5,2));
+----
+NULL
