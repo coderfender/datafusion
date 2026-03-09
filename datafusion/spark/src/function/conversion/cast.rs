@@ -20,13 +20,12 @@ use arrow::datatypes::{
     ArrowPrimitiveType, DataType, Field, FieldRef, Int8Type, Int16Type, Int32Type,
     Int64Type, TimeUnit,
 };
-use datafusion::logical_expr::{Coercion, TypeSignatureClass};
 use datafusion_common::config::ConfigOptions;
-use datafusion_common::types::logical_string;
-use datafusion_common::{
-    Result as DataFusionResult, ScalarValue, exec_err, internal_err,
+use datafusion_common::types::{
+    logical_int8, logical_int16, logical_int32, logical_int64, logical_string,
 };
-use datafusion_expr::TypeSignatureClass::Integer;
+use datafusion_common::{Result, ScalarValue, exec_err, internal_err};
+use datafusion_expr::{Coercion, TypeSignatureClass};
 use datafusion_expr::{
     ColumnarValue, ReturnFieldArgs, ScalarFunctionArgs, ScalarUDF, ScalarUDFImpl,
     Signature, TypeSignature, Volatility,
@@ -81,21 +80,28 @@ impl SparkCast {
     }
 
     pub fn new_with_config(config: &ConfigOptions) -> Self {
-        // First arg: value to cast (only ints for now with potential to add further support later)
+        // First arg: value to cast (only signed ints - Spark doesn't have unsigned integers)
         // Second arg: target datatype as Utf8 string literal (ex : 'timestamp')
-        let int_arg = Coercion::new_exact(Integer);
         let string_arg =
             Coercion::new_exact(TypeSignatureClass::Native(logical_string()));
+
+        // Spark only supports signed integers, so we explicitly list them
+        let signed_int_signatures = [
+            logical_int8(),
+            logical_int16(),
+            logical_int32(),
+            logical_int64(),
+        ]
+        .map(|int_type| {
+            TypeSignature::Coercible(vec![
+                Coercion::new_exact(TypeSignatureClass::Native(int_type)),
+                string_arg.clone(),
+            ])
+        });
+
         Self {
-            signature: Signature::one_of(
-                vec![
-                    TypeSignature::Coercible(vec![int_arg.clone(), string_arg.clone()]),
-                    TypeSignature::Coercible(vec![
-                        int_arg,
-                        string_arg.clone(),
-                        string_arg,
-                    ]),
-                ],
+            signature: Signature::new(
+                TypeSignature::OneOf(Vec::from(signed_int_signatures)),
                 Volatility::Stable,
             ),
             timezone: config
@@ -109,10 +115,7 @@ impl SparkCast {
 }
 
 /// Parse target type string into a DataType
-fn parse_target_type(
-    type_str: &str,
-    timezone: Option<Arc<str>>,
-) -> DataFusionResult<DataType> {
+fn parse_target_type(type_str: &str, timezone: Option<Arc<str>>) -> Result<DataType> {
     match type_str.to_lowercase().as_str() {
         // further data type support in future
         "timestamp" => Ok(DataType::Timestamp(TimeUnit::Microsecond, timezone)),
@@ -127,7 +130,7 @@ fn parse_target_type(
 fn get_target_type_from_scalar_args(
     scalar_args: &[Option<&ScalarValue>],
     timezone: Option<Arc<str>>,
-) -> DataFusionResult<DataType> {
+) -> Result<DataType> {
     let type_arg = scalar_args.get(1).and_then(|opt| *opt);
 
     match type_arg {
@@ -143,7 +146,7 @@ fn get_target_type_from_scalar_args(
 fn cast_int_to_timestamp<T: ArrowPrimitiveType>(
     array: &ArrayRef,
     timezone: Option<Arc<str>>,
-) -> DataFusionResult<ArrayRef>
+) -> Result<ArrayRef>
 where
     T::Native: Into<i64>,
 {
@@ -176,7 +179,7 @@ impl ScalarUDFImpl for SparkCast {
         &self.signature
     }
 
-    fn return_type(&self, _arg_types: &[DataType]) -> DataFusionResult<DataType> {
+    fn return_type(&self, _arg_types: &[DataType]) -> Result<DataType> {
         internal_err!("return_field_from_args should be used instead")
     }
 
@@ -184,10 +187,7 @@ impl ScalarUDFImpl for SparkCast {
         Some(ScalarUDF::from(Self::new_with_config(config)))
     }
 
-    fn return_field_from_args(
-        &self,
-        args: ReturnFieldArgs,
-    ) -> DataFusionResult<FieldRef> {
+    fn return_field_from_args(&self, args: ReturnFieldArgs) -> Result<FieldRef> {
         let nullable = args.arg_fields.iter().any(|f| f.is_nullable());
         let return_type = get_target_type_from_scalar_args(
             args.scalar_arguments,
@@ -196,10 +196,7 @@ impl ScalarUDFImpl for SparkCast {
         Ok(Arc::new(Field::new(self.name(), return_type, nullable)))
     }
 
-    fn invoke_with_args(
-        &self,
-        args: ScalarFunctionArgs,
-    ) -> DataFusionResult<ColumnarValue> {
+    fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
         let target_type = args.return_field.data_type();
         match target_type {
             DataType::Timestamp(TimeUnit::Microsecond, tz) => {
@@ -214,7 +211,7 @@ impl ScalarUDFImpl for SparkCast {
 fn cast_to_timestamp(
     input: &ColumnarValue,
     timezone: Option<Arc<str>>,
-) -> DataFusionResult<ColumnarValue> {
+) -> Result<ColumnarValue> {
     match input {
         ColumnarValue::Array(array) => match array.data_type() {
             DataType::Null => Ok(ColumnarValue::Array(Arc::new(
