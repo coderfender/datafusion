@@ -52,7 +52,7 @@
 /// get_or_init_udwf!(
 ///     SimpleUDWF,
 ///     simple,
-///     simple_udfw,
+///     simple_udwf,
 ///     "Simple user-defined window function doc comment."
 /// );
 /// #
