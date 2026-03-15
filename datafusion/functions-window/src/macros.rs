@@ -31,7 +31,7 @@
 /// * `$UDWF`: The struct which defines the [`Signature`](datafusion_expr::Signature)
 ///   of the user-defined window function.
 /// * `$OUT_FN_NAME`: The expression function name
-///   `$OUT_FN_NAME_udwf` : The unique function name
+///   `UDWF_FN` : The unique function name
 /// * `$DOC`: Doc comments for UDWF.
 /// * (optional) `$CTOR`: Pass a custom constructor. When omitted it
 ///   automatically resolves to `$UDWF::default()`.
@@ -222,7 +222,7 @@ macro_rules! get_or_init_udwf {
 /// # use datafusion_expr::{col, lit};
 /// # use datafusion_functions_window_common::partition::PartitionEvaluatorArgs;
 /// #
-/// # get_or_init_udwf!(Lead, lead,lead_udfw, "user-defined window function");
+/// # get_or_init_udwf!(Lead, lead,lead_udwf, "user-defined window function");
 /// #
 /// /// Creates `lead(expr, offset, default)` with 3 parameters:
 /// ///
@@ -372,6 +372,7 @@ macro_rules! create_udwf_expr {
 /// define_udwf_and_expr!(
 ///     SimpleUDWF,
 ///     simple,
+///     simpl_udwf,
 ///     "a simple user-defined window function"
 /// );
 /// #
@@ -435,6 +436,7 @@ macro_rules! create_udwf_expr {
 /// define_udwf_and_expr!(
 ///     RowNumber,
 ///     row_number,
+///     row_number_udwf,
 ///     "Returns a unique row number for each row in window partition beginning at 1.",
 ///     RowNumber::new // <-- custom constructor
 /// );
