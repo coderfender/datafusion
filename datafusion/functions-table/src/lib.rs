@@ -38,8 +38,8 @@ pub fn all_default_table_functions() -> Vec<Arc<TableFunction>> {
 /// Creates a singleton instance of a table function
 /// - `$module`: A struct implementing `TableFunctionImpl` to create the function from
 /// - `$name`: The name to give to the created function
-///
-/// This is used to ensure creating the list of `TableFunction` only happens once.
+/// - `$func_name`: The name of the function to be called
+///   This is used to ensure creating the list of `TableFunction` only happens once.
 #[macro_export]
 macro_rules! create_udtf_function {
     ($module:expr, $func_name:ident, $name:expr) => {
