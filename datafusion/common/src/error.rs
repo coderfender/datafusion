@@ -915,7 +915,7 @@ macro_rules! make_error {
         /// Macro wraps `$ERR` to add backtrace feature
         #[macro_export]
         macro_rules! $NAME_DF_ERR {
-            ($d($d args:expr),* $d(; diagnostic=$d DIAG:expr)?) => {{
+            ($d($d args:expr),* $d(; diagnostic = $d DIAG:expr)?) => {{
                 let err = $crate::DataFusionError::$ERR(
                     ::std::format!(
                         "{}{}",
