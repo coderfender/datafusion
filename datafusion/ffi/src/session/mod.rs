@@ -20,8 +20,6 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::sync::Arc;
 
-use abi_stable::StableAbi;
-use abi_stable::std_types::{RHashMap, RResult, RStr, RString, RVec};
 use arrow_schema::SchemaRef;
 use arrow_schema::ffi::FFI_ArrowSchema;
 use async_ffi::{FfiFuture, FutureExt};
@@ -45,6 +43,10 @@ use datafusion_proto::logical_plan::to_proto::serialize_expr;
 use datafusion_proto::protobuf::LogicalExprNode;
 use datafusion_session::Session;
 use prost::Message;
+use stabby::result::Result as StabbyResult;
+use stabby::str::Str as StabbyStr;
+use stabby::string::String as StabbyString;
+use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
 use crate::arrow_wrappers::WrappedSchema;
@@ -74,34 +76,37 @@ pub mod config;
 /// which has methods that require `&dyn Session`. For usage within this crate
 /// we know the [`Session`] lifetimes are valid.
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub(crate) struct FFI_SessionRef {
-    session_id: unsafe extern "C" fn(&Self) -> RStr,
+    session_id: unsafe extern "C" fn(&Self) -> StabbyStr,
 
     config: unsafe extern "C" fn(&Self) -> FFI_SessionConfig,
 
     create_physical_plan: unsafe extern "C" fn(
         &Self,
-        logical_plan_serialized: RVec<u8>,
+        logical_plan_serialized: StabbyVec<u8>,
     )
         -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
 
     create_physical_expr: unsafe extern "C" fn(
         &Self,
-        expr_serialized: RVec<u8>,
+        expr_serialized: StabbyVec<u8>,
         schema: WrappedSchema,
     ) -> FFIResult<FFI_PhysicalExpr>,
 
-    scalar_functions: unsafe extern "C" fn(&Self) -> RHashMap<RString, FFI_ScalarUDF>,
+    scalar_functions:
+        unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, FFI_ScalarUDF)>,
 
     aggregate_functions:
-        unsafe extern "C" fn(&Self) -> RHashMap<RString, FFI_AggregateUDF>,
+        unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, FFI_AggregateUDF)>,
 
-    window_functions: unsafe extern "C" fn(&Self) -> RHashMap<RString, FFI_WindowUDF>,
+    window_functions:
+        unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, FFI_WindowUDF)>,
 
-    table_options: unsafe extern "C" fn(&Self) -> RHashMap<RString, RString>,
+    table_options: unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, StabbyString)>,
 
-    default_table_options: unsafe extern "C" fn(&Self) -> RHashMap<RString, RString>,
+    default_table_options:
+        unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, StabbyString)>,
 
     task_ctx: unsafe extern "C" fn(&Self) -> FFI_TaskContext,
 
@@ -148,7 +153,7 @@ impl FFI_SessionRef {
     }
 }
 
-unsafe extern "C" fn session_id_fn_wrapper(session: &FFI_SessionRef) -> RStr<'_> {
+unsafe extern "C" fn session_id_fn_wrapper(session: &FFI_SessionRef) -> StabbyStr<'_> {
     let session = session.inner();
     session.session_id().into()
 }
@@ -160,7 +165,7 @@ unsafe extern "C" fn config_fn_wrapper(session: &FFI_SessionRef) -> FFI_SessionC
 
 unsafe extern "C" fn create_physical_plan_fn_wrapper(
     session: &FFI_SessionRef,
-    logical_plan_serialized: RVec<u8>,
+    logical_plan_serialized: StabbyVec<u8>,
 ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
     unsafe {
         let runtime = session.runtime().clone();
@@ -184,7 +189,7 @@ unsafe extern "C" fn create_physical_plan_fn_wrapper(
 
 unsafe extern "C" fn create_physical_expr_fn_wrapper(
     session: &FFI_SessionRef,
-    expr_serialized: RVec<u8>,
+    expr_serialized: StabbyVec<u8>,
     schema: WrappedSchema,
 ) -> FFIResult<FFI_PhysicalExpr> {
     let codec: Arc<dyn LogicalExtensionCodec> = (&session.logical_codec).into();
@@ -199,12 +204,12 @@ unsafe extern "C" fn create_physical_expr_fn_wrapper(
     let physical_expr =
         rresult_return!(session.create_physical_expr(logical_expr, &schema));
 
-    RResult::ROk(physical_expr.into())
+    StabbyResult::Ok(physical_expr.into())
 }
 
 unsafe extern "C" fn scalar_functions_fn_wrapper(
     session: &FFI_SessionRef,
-) -> RHashMap<RString, FFI_ScalarUDF> {
+) -> StabbyVec<(StabbyString, FFI_ScalarUDF)> {
     let session = session.inner();
     session
         .scalar_functions()
@@ -215,7 +220,7 @@ unsafe extern "C" fn scalar_functions_fn_wrapper(
 
 unsafe extern "C" fn aggregate_functions_fn_wrapper(
     session: &FFI_SessionRef,
-) -> RHashMap<RString, FFI_AggregateUDF> {
+) -> StabbyVec<(StabbyString, FFI_AggregateUDF)> {
     let session = session.inner();
     session
         .aggregate_functions()
@@ -231,7 +236,7 @@ unsafe extern "C" fn aggregate_functions_fn_wrapper(
 
 unsafe extern "C" fn window_functions_fn_wrapper(
     session: &FFI_SessionRef,
-) -> RHashMap<RString, FFI_WindowUDF> {
+) -> StabbyVec<(StabbyString, FFI_WindowUDF)> {
     let session = session.inner();
     session
         .window_functions()
@@ -240,13 +245,15 @@ unsafe extern "C" fn window_functions_fn_wrapper(
         .collect()
 }
 
-fn table_options_to_rhash(mut options: TableOptions) -> RHashMap<RString, RString> {
+fn table_options_to_rhash(
+    mut options: TableOptions,
+) -> StabbyVec<(StabbyString, StabbyString)> {
     // It is important that we mutate options here and set current format
     // to None so that when we call `entries()` we get ALL format entries.
     // We will pass current_format as a special case and strip it on the
     // other side of the boundary.
     let current_format = options.current_format.take();
-    let mut options: HashMap<RString, RString> = options
+    let mut options: HashMap<StabbyString, StabbyString> = options
         .entries()
         .into_iter()
         .filter_map(|entry| entry.value.map(|v| (entry.key.into(), v.into())))
@@ -268,7 +275,7 @@ fn table_options_to_rhash(mut options: TableOptions) -> RHashMap<RString, RStrin
 
 unsafe extern "C" fn table_options_fn_wrapper(
     session: &FFI_SessionRef,
-) -> RHashMap<RString, RString> {
+) -> StabbyVec<(StabbyString, StabbyString)> {
     let session = session.inner();
     let table_options = session.table_options();
     table_options_to_rhash(table_options.clone())
@@ -276,7 +283,7 @@ unsafe extern "C" fn table_options_fn_wrapper(
 
 unsafe extern "C" fn default_table_options_fn_wrapper(
     session: &FFI_SessionRef,
-) -> RHashMap<RString, RString> {
+) -> StabbyVec<(StabbyString, StabbyString)> {
     let session = session.inner();
     let table_options = session.default_table_options();
 
@@ -455,7 +462,9 @@ impl Clone for FFI_SessionRef {
     }
 }
 
-fn table_options_from_rhashmap(options: RHashMap<RString, RString>) -> TableOptions {
+fn table_options_from_rhashmap(
+    options: StabbyVec<(StabbyString, StabbyString)>,
+) -> TableOptions {
     let mut options: HashMap<String, String> = options
         .into_iter()
         .map(|kv_pair| (kv_pair.0.into_string(), kv_pair.1.into_string()))

@@ -18,15 +18,15 @@
 use std::ffi::c_void;
 use std::sync::Arc;
 
-use abi_stable::StableAbi;
-use abi_stable::pmr::ROption;
-use abi_stable::std_types::{RHashMap, RString};
 use datafusion_execution::TaskContext;
 use datafusion_execution::config::SessionConfig;
 use datafusion_execution::runtime_env::RuntimeEnv;
 use datafusion_expr::{
     AggregateUDF, AggregateUDFImpl, ScalarUDF, ScalarUDFImpl, WindowUDF, WindowUDFImpl,
 };
+use stabby::option::Option as StabbyOption;
+use stabby::string::String as StabbyString;
+use stabby::vec::Vec as StabbyVec;
 
 use crate::session::config::FFI_SessionConfig;
 use crate::udaf::FFI_AggregateUDF;
@@ -35,26 +35,28 @@ use crate::udwf::FFI_WindowUDF;
 
 /// A stable struct for sharing [`TaskContext`] across FFI boundaries.
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_TaskContext {
     /// Return the session ID.
-    pub session_id: unsafe extern "C" fn(&Self) -> RString,
+    pub session_id: unsafe extern "C" fn(&Self) -> StabbyString,
 
     /// Return the task ID.
-    pub task_id: unsafe extern "C" fn(&Self) -> ROption<RString>,
+    pub task_id: unsafe extern "C" fn(&Self) -> StabbyOption<StabbyString>,
 
     /// Return the session configuration.
     pub session_config: unsafe extern "C" fn(&Self) -> FFI_SessionConfig,
 
-    /// Returns a hashmap of names to scalar functions.
-    pub scalar_functions: unsafe extern "C" fn(&Self) -> RHashMap<RString, FFI_ScalarUDF>,
+    /// Returns a vec of name-function pairs for scalar functions.
+    pub scalar_functions:
+        unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, FFI_ScalarUDF)>,
 
-    /// Returns a hashmap of names to aggregate functions.
+    /// Returns a vec of name-function pairs for aggregate functions.
     pub aggregate_functions:
-        unsafe extern "C" fn(&Self) -> RHashMap<RString, FFI_AggregateUDF>,
+        unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, FFI_AggregateUDF)>,
 
-    /// Returns a hashmap of names to window functions.
-    pub window_functions: unsafe extern "C" fn(&Self) -> RHashMap<RString, FFI_WindowUDF>,
+    /// Returns a vec of name-function pairs for window functions.
+    pub window_functions:
+        unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, FFI_WindowUDF)>,
 
     /// Release the memory of the private data when it is no longer being used.
     pub release: unsafe extern "C" fn(arg: &mut Self),
@@ -82,14 +84,16 @@ impl FFI_TaskContext {
     }
 }
 
-unsafe extern "C" fn session_id_fn_wrapper(ctx: &FFI_TaskContext) -> RString {
+unsafe extern "C" fn session_id_fn_wrapper(ctx: &FFI_TaskContext) -> StabbyString {
     unsafe {
         let ctx = ctx.inner();
         ctx.session_id().into()
     }
 }
 
-unsafe extern "C" fn task_id_fn_wrapper(ctx: &FFI_TaskContext) -> ROption<RString> {
+unsafe extern "C" fn task_id_fn_wrapper(
+    ctx: &FFI_TaskContext,
+) -> StabbyOption<StabbyString> {
     unsafe {
         let ctx = ctx.inner();
         ctx.task_id().map(|s| s.as_str().into()).into()
@@ -107,7 +111,7 @@ unsafe extern "C" fn session_config_fn_wrapper(
 
 unsafe extern "C" fn scalar_functions_fn_wrapper(
     ctx: &FFI_TaskContext,
-) -> RHashMap<RString, FFI_ScalarUDF> {
+) -> StabbyVec<(StabbyString, FFI_ScalarUDF)> {
     unsafe {
         let ctx = ctx.inner();
         ctx.scalar_functions()
@@ -119,7 +123,7 @@ unsafe extern "C" fn scalar_functions_fn_wrapper(
 
 unsafe extern "C" fn aggregate_functions_fn_wrapper(
     ctx: &FFI_TaskContext,
-) -> RHashMap<RString, FFI_AggregateUDF> {
+) -> StabbyVec<(StabbyString, FFI_AggregateUDF)> {
     unsafe {
         let ctx = ctx.inner();
         ctx.aggregate_functions()
@@ -136,7 +140,7 @@ unsafe extern "C" fn aggregate_functions_fn_wrapper(
 
 unsafe extern "C" fn window_functions_fn_wrapper(
     ctx: &FFI_TaskContext,
-) -> RHashMap<RString, FFI_WindowUDF> {
+) -> StabbyVec<(StabbyString, FFI_WindowUDF)> {
     unsafe {
         let ctx = ctx.inner();
         ctx.window_functions()

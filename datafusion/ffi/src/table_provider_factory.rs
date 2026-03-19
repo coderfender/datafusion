@@ -17,10 +17,6 @@
 
 use std::{ffi::c_void, sync::Arc};
 
-use abi_stable::{
-    StableAbi,
-    std_types::{RResult, RString, RVec},
-};
 use async_ffi::{FfiFuture, FutureExt};
 use async_trait::async_trait;
 use datafusion_catalog::{Session, TableProvider, TableProviderFactory};
@@ -32,6 +28,9 @@ use datafusion_proto::logical_plan::{
 };
 use datafusion_proto::protobuf::LogicalPlanNode;
 use prost::Message;
+use stabby::result::Result as StabbyResult;
+use stabby::string::String as StabbyString;
+use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContextProvider;
@@ -49,7 +48,7 @@ use crate::{df_result, rresult_return};
 ///
 /// [`FFI_TableProvider`]: crate::table_provider::FFI_TableProvider
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_TableProviderFactory {
     /// Create a TableProvider with the given command.
     ///
@@ -62,8 +61,10 @@ pub struct FFI_TableProviderFactory {
     create: unsafe extern "C" fn(
         factory: &Self,
         session: FFI_SessionRef,
-        cmd_serialized: RVec<u8>,
-    ) -> FfiFuture<RResult<FFI_TableProvider, RString>>,
+        cmd_serialized: StabbyVec<u8>,
+    ) -> FfiFuture<
+        StabbyResult<FFI_TableProvider, StabbyString>,
+    >,
 
     logical_codec: FFI_LogicalExtensionCodec,
 
@@ -144,7 +145,7 @@ impl FFI_TableProviderFactory {
 
     fn deserialize_cmd(
         &self,
-        cmd_serialized: &RVec<u8>,
+        cmd_serialized: &StabbyVec<u8>,
     ) -> Result<CreateExternalTable, DataFusionError> {
         let task_ctx: Arc<TaskContext> =
             (&self.logical_codec.task_ctx_provider).try_into()?;
@@ -186,15 +187,15 @@ impl From<&FFI_TableProviderFactory> for Arc<dyn TableProviderFactory> {
 unsafe extern "C" fn create_fn_wrapper(
     factory: &FFI_TableProviderFactory,
     session: FFI_SessionRef,
-    cmd_serialized: RVec<u8>,
-) -> FfiFuture<RResult<FFI_TableProvider, RString>> {
+    cmd_serialized: StabbyVec<u8>,
+) -> FfiFuture<StabbyResult<FFI_TableProvider, StabbyString>> {
     let factory = factory.clone();
 
     async move {
         let provider = rresult_return!(
             create_fn_wrapper_impl(factory, session, cmd_serialized).await
         );
-        RResult::ROk(provider)
+        StabbyResult::ROk(provider)
     }
     .into_ffi()
 }
@@ -202,7 +203,7 @@ unsafe extern "C" fn create_fn_wrapper(
 async fn create_fn_wrapper_impl(
     factory: FFI_TableProviderFactory,
     session: FFI_SessionRef,
-    cmd_serialized: RVec<u8>,
+    cmd_serialized: StabbyVec<u8>,
 ) -> Result<FFI_TableProvider, DataFusionError> {
     let runtime = factory.runtime().clone();
     let ffi_logical_codec = factory.logical_codec.clone();
@@ -269,7 +270,7 @@ impl ForeignTableProviderFactory {
     fn serialize_cmd(
         &self,
         cmd: CreateExternalTable,
-    ) -> Result<RVec<u8>, DataFusionError> {
+    ) -> Result<StabbyVec<u8>, DataFusionError> {
         let logical_codec: Arc<dyn LogicalExtensionCodec> =
             (&self.0.logical_codec).into();
 

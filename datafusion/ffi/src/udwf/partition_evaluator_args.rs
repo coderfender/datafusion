@@ -17,14 +17,13 @@
 
 use std::sync::Arc;
 
-use abi_stable::StableAbi;
-use abi_stable::std_types::RVec;
 use arrow::error::ArrowError;
 use arrow::ffi::FFI_ArrowSchema;
 use arrow_schema::FieldRef;
 use datafusion_common::{DataFusionError, Result};
 use datafusion_expr::function::PartitionEvaluatorArgs;
 use datafusion_physical_plan::PhysicalExpr;
+use stabby::vec::Vec as StabbyVec;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::physical_expr::FFI_PhysicalExpr;
@@ -34,10 +33,10 @@ use crate::util::rvec_wrapped_to_vec_fieldref;
 /// For an explanation of each field, see the corresponding function
 /// defined in [`PartitionEvaluatorArgs`].
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_PartitionEvaluatorArgs {
-    input_exprs: RVec<FFI_PhysicalExpr>,
-    input_fields: RVec<WrappedSchema>,
+    input_exprs: StabbyVec<FFI_PhysicalExpr>,
+    input_fields: StabbyVec<WrappedSchema>,
     is_reversed: bool,
     ignore_nulls: bool,
 }

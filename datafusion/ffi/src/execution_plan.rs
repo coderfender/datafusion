@@ -19,13 +19,14 @@ use std::ffi::c_void;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use abi_stable::StableAbi;
-use abi_stable::std_types::{RString, RVec};
+use datafusion_common::tree_node::TreeNodeRecursion;
 use datafusion_common::{DataFusionError, Result};
 use datafusion_execution::{SendableRecordBatchStream, TaskContext};
 use datafusion_physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
+use stabby::string::String as StabbyString;
+use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContext;
@@ -36,16 +37,16 @@ use crate::{df_result, rresult};
 
 /// A stable struct for sharing a [`ExecutionPlan`] across FFI boundaries.
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_ExecutionPlan {
     /// Return the plan properties
     pub properties: unsafe extern "C" fn(plan: &Self) -> FFI_PlanProperties,
 
     /// Return a vector of children plans
-    pub children: unsafe extern "C" fn(plan: &Self) -> RVec<FFI_ExecutionPlan>,
+    pub children: unsafe extern "C" fn(plan: &Self) -> StabbyVec<FFI_ExecutionPlan>,
 
     /// Return the plan name.
-    pub name: unsafe extern "C" fn(plan: &Self) -> RString,
+    pub name: unsafe extern "C" fn(plan: &Self) -> StabbyString,
 
     /// Execute the plan and return a record batch stream. Errors
     /// will be returned as a string.
@@ -95,7 +96,7 @@ unsafe extern "C" fn properties_fn_wrapper(
 
 unsafe extern "C" fn children_fn_wrapper(
     plan: &FFI_ExecutionPlan,
-) -> RVec<FFI_ExecutionPlan> {
+) -> StabbyVec<FFI_ExecutionPlan> {
     unsafe {
         let private_data = plan.private_data as *const ExecutionPlanPrivateData;
         let plan = &(*private_data).plan;
@@ -129,7 +130,7 @@ unsafe extern "C" fn execute_fn_wrapper(
     }
 }
 
-unsafe extern "C" fn name_fn_wrapper(plan: &FFI_ExecutionPlan) -> RString {
+unsafe extern "C" fn name_fn_wrapper(plan: &FFI_ExecutionPlan) -> StabbyString {
     plan.inner().name().into()
 }
 

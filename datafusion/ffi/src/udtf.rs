@@ -18,8 +18,6 @@
 use std::ffi::c_void;
 use std::sync::Arc;
 
-use abi_stable::StableAbi;
-use abi_stable::std_types::{RResult, RVec};
 use datafusion_catalog::{TableFunctionImpl, TableProvider};
 use datafusion_common::error::Result;
 use datafusion_execution::TaskContext;
@@ -31,6 +29,8 @@ use datafusion_proto::logical_plan::{
 };
 use datafusion_proto::protobuf::LogicalExprList;
 use prost::Message;
+use stabby::result::Result as StabbyResult;
+use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContextProvider;
@@ -41,12 +41,14 @@ use crate::{df_result, rresult_return};
 
 /// A stable struct for sharing a [`TableFunctionImpl`] across FFI boundaries.
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_TableFunction {
     /// Equivalent to the `call` function of the TableFunctionImpl.
     /// The arguments are Expr passed as protobuf encoded bytes.
-    pub call:
-        unsafe extern "C" fn(udtf: &Self, args: RVec<u8>) -> FFIResult<FFI_TableProvider>,
+    pub call: unsafe extern "C" fn(
+        udtf: &Self,
+        args: StabbyVec<u8>,
+    ) -> FFIResult<FFI_TableProvider>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 
@@ -89,7 +91,7 @@ impl FFI_TableFunction {
 
 unsafe extern "C" fn call_fn_wrapper(
     udtf: &FFI_TableFunction,
-    args: RVec<u8>,
+    args: StabbyVec<u8>,
 ) -> FFIResult<FFI_TableProvider> {
     let runtime = udtf.runtime();
     let udtf_inner = udtf.inner();
@@ -107,7 +109,7 @@ unsafe extern "C" fn call_fn_wrapper(
     ));
 
     let table_provider = rresult_return!(udtf_inner.call(&args));
-    RResult::ROk(FFI_TableProvider::new_with_ffi_codec(
+    StabbyResult::Ok(FFI_TableProvider::new_with_ffi_codec(
         table_provider,
         false,
         runtime,

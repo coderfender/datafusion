@@ -19,10 +19,12 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::ffi::c_void;
 
-use abi_stable::StableAbi;
-use abi_stable::std_types::{RResult, RStr, RString, RVec, Tuple2};
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_common::{Result, exec_err};
+use stabby::result::Result as StabbyResult;
+use stabby::str::Str as StabbyStr;
+use stabby::string::String as StabbyString;
+use stabby::vec::Vec as StabbyVec;
 
 use crate::df_result;
 
@@ -38,17 +40,20 @@ use crate::df_result;
 /// are stored with the full path prefix to avoid overwriting values when using
 /// multiple extensions.
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_ExtensionOptions {
     /// Return a deep clone of this [`ExtensionOptions`]
     pub cloned: unsafe extern "C" fn(&Self) -> FFI_ExtensionOptions,
 
     /// Set the given `key`, `value` pair
-    pub set:
-        unsafe extern "C" fn(&mut Self, key: RStr, value: RStr) -> RResult<(), RString>,
+    pub set: unsafe extern "C" fn(
+        &mut Self,
+        key: StabbyStr,
+        value: StabbyStr,
+    ) -> StabbyResult<(), StabbyString>,
 
     /// Returns the [`ConfigEntry`] stored in this [`ExtensionOptions`]
-    pub entries: unsafe extern "C" fn(&Self) -> RVec<Tuple2<RString, RString>>,
+    pub entries: unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, StabbyString)>,
 
     /// Release the memory of the private data when it is no longer being used.
     pub release: unsafe extern "C" fn(&mut Self),
@@ -91,20 +96,22 @@ unsafe extern "C" fn cloned_fn_wrapper(
 
 unsafe extern "C" fn set_fn_wrapper(
     options: &mut FFI_ExtensionOptions,
-    key: RStr,
-    value: RStr,
-) -> RResult<(), RString> {
-    let _ = options.inner_mut().insert(key.into(), value.into());
-    RResult::ROk(())
+    key: StabbyStr,
+    value: StabbyStr,
+) -> StabbyResult<(), StabbyString> {
+    let _ = options
+        .inner_mut()
+        .insert(key.as_str().into(), value.as_str().into());
+    StabbyResult::Ok(())
 }
 
 unsafe extern "C" fn entries_fn_wrapper(
     options: &FFI_ExtensionOptions,
-) -> RVec<Tuple2<RString, RString>> {
+) -> StabbyVec<(StabbyString, StabbyString)> {
     options
         .inner()
         .iter()
-        .map(|(key, value)| (key.to_owned().into(), value.to_owned().into()).into())
+        .map(|(key, value)| (key.to_owned().into(), value.to_owned().into()))
         .collect()
 }
 
