@@ -19,8 +19,6 @@ use std::ffi::c_void;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use abi_stable::StableAbi;
-use abi_stable::std_types::{ROption, RResult, RString, RVec};
 use arrow::compute::SortOptions;
 use arrow::datatypes::{DataType, Schema, SchemaRef};
 use arrow_schema::{Field, FieldRef};
@@ -35,6 +33,10 @@ use partition_evaluator::FFI_PartitionEvaluator;
 use partition_evaluator_args::{
     FFI_PartitionEvaluatorArgs, ForeignPartitionEvaluatorArgs,
 };
+use stabby::option::Option as StabbyOption;
+use stabby::result::Result as StabbyResult;
+use stabby::string::String as StabbyString;
+use stabby::vec::Vec as StabbyVec;
 
 mod partition_evaluator;
 mod partition_evaluator_args;
@@ -50,13 +52,13 @@ use crate::{df_result, rresult, rresult_return};
 
 /// A stable struct for sharing a [`WindowUDF`] across FFI boundaries.
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_WindowUDF {
     /// FFI equivalent to the `name` of a [`WindowUDF`]
-    pub name: RString,
+    pub name: StabbyString,
 
     /// FFI equivalent to the `aliases` of a [`WindowUDF`]
-    pub aliases: RVec<RString>,
+    pub aliases: StabbyVec<StabbyString>,
 
     /// FFI equivalent to the `volatility` of a [`WindowUDF`]
     pub volatility: FFI_Volatility,
@@ -69,8 +71,8 @@ pub struct FFI_WindowUDF {
 
     pub field: unsafe extern "C" fn(
         udwf: &Self,
-        input_types: RVec<WrappedSchema>,
-        display_name: RString,
+        input_types: StabbyVec<WrappedSchema>,
+        display_name: StabbyString,
     ) -> FFIResult<WrappedSchema>,
 
     /// Performs type coercion. To simply this interface, all UDFs are treated as having
@@ -79,10 +81,10 @@ pub struct FFI_WindowUDF {
     /// appropriate calls on the underlying [`WindowUDF`]
     pub coerce_types: unsafe extern "C" fn(
         udf: &Self,
-        arg_types: RVec<WrappedSchema>,
-    ) -> FFIResult<RVec<WrappedSchema>>,
+        arg_types: StabbyVec<WrappedSchema>,
+    ) -> FFIResult<StabbyVec<WrappedSchema>>,
 
-    pub sort_options: ROption<FFI_SortOptions>,
+    pub sort_options: StabbyOption<FFI_SortOptions>,
 
     /// Used to create a clone on the provider of the udf. This should
     /// only need to be called by the receiver of the udf.
@@ -129,14 +131,14 @@ unsafe extern "C" fn partition_evaluator_fn_wrapper(
         let evaluator =
             rresult_return!(inner.partition_evaluator_factory((&args).into()));
 
-        RResult::ROk(evaluator.into())
+        StabbyResult::Ok(evaluator.into())
     }
 }
 
 unsafe extern "C" fn field_fn_wrapper(
     udwf: &FFI_WindowUDF,
-    input_fields: RVec<WrappedSchema>,
-    display_name: RString,
+    input_fields: StabbyVec<WrappedSchema>,
+    display_name: StabbyString,
 ) -> FFIResult<WrappedSchema> {
     unsafe {
         let inner = udwf.inner();
@@ -150,14 +152,14 @@ unsafe extern "C" fn field_fn_wrapper(
 
         let schema = Arc::new(Schema::new(vec![field]));
 
-        RResult::ROk(WrappedSchema::from(schema))
+        StabbyResult::Ok(WrappedSchema::from(schema))
     }
 }
 
 unsafe extern "C" fn coerce_types_fn_wrapper(
     udwf: &FFI_WindowUDF,
-    arg_types: RVec<WrappedSchema>,
-) -> FFIResult<RVec<WrappedSchema>> {
+    arg_types: StabbyVec<WrappedSchema>,
+) -> FFIResult<StabbyVec<WrappedSchema>> {
     unsafe {
         let inner = udwf.inner();
 
@@ -368,7 +370,7 @@ impl WindowUDFImpl for ForeignWindowUDF {
 }
 
 #[repr(C)]
-#[derive(Debug, StableAbi, Clone)]
+#[derive(Debug, Clone)]
 pub struct FFI_SortOptions {
     pub descending: bool,
     pub nulls_first: bool,

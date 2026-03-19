@@ -18,8 +18,6 @@
 use std::ffi::c_void;
 use std::sync::Arc;
 
-use abi_stable::StableAbi;
-use abi_stable::std_types::{RResult, RSlice, RStr, RVec};
 use arrow::datatypes::SchemaRef;
 use datafusion_catalog::TableProvider;
 use datafusion_common::error::Result;
@@ -33,6 +31,10 @@ use datafusion_expr::{
 use datafusion_proto::logical_plan::{
     DefaultLogicalExtensionCodec, LogicalExtensionCodec,
 };
+use stabby::result::Result as StabbyResult;
+use stabby::slice::Slice as StabbySlice;
+use stabby::str::Str as StabbyStr;
+use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
 use crate::arrow_wrappers::WrappedSchema;
@@ -46,55 +48,55 @@ use crate::{df_result, rresult_return};
 
 /// A stable struct for sharing [`LogicalExtensionCodec`] across FFI boundaries.
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_LogicalExtensionCodec {
     /// Decode bytes into a table provider.
     try_decode_table_provider: unsafe extern "C" fn(
         &Self,
-        buf: RSlice<u8>,
-        table_ref: RStr,
+        buf: StabbySlice<u8>,
+        table_ref: StabbyStr,
         schema: WrappedSchema,
     ) -> FFIResult<FFI_TableProvider>,
 
     /// Encode a table provider into bytes.
     try_encode_table_provider: unsafe extern "C" fn(
         &Self,
-        table_ref: RStr,
+        table_ref: StabbyStr,
         node: FFI_TableProvider,
-    ) -> FFIResult<RVec<u8>>,
+    ) -> FFIResult<StabbyVec<u8>>,
 
     /// Decode bytes into a user defined scalar function.
     try_decode_udf: unsafe extern "C" fn(
         &Self,
-        name: RStr,
-        buf: RSlice<u8>,
+        name: StabbyStr,
+        buf: StabbySlice<u8>,
     ) -> FFIResult<FFI_ScalarUDF>,
 
     /// Encode a user defined scalar function into bytes.
     try_encode_udf:
-        unsafe extern "C" fn(&Self, node: FFI_ScalarUDF) -> FFIResult<RVec<u8>>,
+        unsafe extern "C" fn(&Self, node: FFI_ScalarUDF) -> FFIResult<StabbyVec<u8>>,
 
     /// Decode bytes into a user defined aggregate function.
     try_decode_udaf: unsafe extern "C" fn(
         &Self,
-        name: RStr,
-        buf: RSlice<u8>,
+        name: StabbyStr,
+        buf: StabbySlice<u8>,
     ) -> FFIResult<FFI_AggregateUDF>,
 
     /// Encode a user defined aggregate function into bytes.
     try_encode_udaf:
-        unsafe extern "C" fn(&Self, node: FFI_AggregateUDF) -> FFIResult<RVec<u8>>,
+        unsafe extern "C" fn(&Self, node: FFI_AggregateUDF) -> FFIResult<StabbyVec<u8>>,
 
     /// Decode bytes into a user defined window function.
     try_decode_udwf: unsafe extern "C" fn(
         &Self,
-        name: RStr,
-        buf: RSlice<u8>,
+        name: StabbyStr,
+        buf: StabbySlice<u8>,
     ) -> FFIResult<FFI_WindowUDF>,
 
     /// Encode a user defined window function into bytes.
     try_encode_udwf:
-        unsafe extern "C" fn(&Self, node: FFI_WindowUDF) -> FFIResult<RVec<u8>>,
+        unsafe extern "C" fn(&Self, node: FFI_WindowUDF) -> FFIResult<StabbyVec<u8>>,
 
     pub task_ctx_provider: FFI_TaskContextProvider,
 
@@ -143,8 +145,8 @@ impl FFI_LogicalExtensionCodec {
 
 unsafe extern "C" fn try_decode_table_provider_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
-    buf: RSlice<u8>,
-    table_ref: RStr,
+    buf: StabbySlice<u8>,
+    table_ref: StabbyStr,
     schema: WrappedSchema,
 ) -> FFIResult<FFI_TableProvider> {
     let ctx = rresult_return!(codec.task_ctx());
@@ -160,7 +162,7 @@ unsafe extern "C" fn try_decode_table_provider_fn_wrapper(
         ctx.as_ref()
     ));
 
-    RResult::ROk(FFI_TableProvider::new_with_ffi_codec(
+    StabbyResult::Ok(FFI_TableProvider::new_with_ffi_codec(
         table_provider,
         true,
         runtime,
@@ -170,9 +172,9 @@ unsafe extern "C" fn try_decode_table_provider_fn_wrapper(
 
 unsafe extern "C" fn try_encode_table_provider_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
-    table_ref: RStr,
+    table_ref: StabbyStr,
     node: FFI_TableProvider,
-) -> FFIResult<RVec<u8>> {
+) -> FFIResult<StabbyVec<u8>> {
     let table_ref = TableReference::from(table_ref.as_str());
     let table_provider: Arc<dyn TableProvider> = (&node).into();
     let codec = codec.inner();
@@ -184,26 +186,26 @@ unsafe extern "C" fn try_encode_table_provider_fn_wrapper(
         &mut bytes
     ));
 
-    RResult::ROk(bytes.into())
+    StabbyResult::Ok(bytes.into())
 }
 
 unsafe extern "C" fn try_decode_udf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
-    name: RStr,
-    buf: RSlice<u8>,
+    name: StabbyStr,
+    buf: StabbySlice<u8>,
 ) -> FFIResult<FFI_ScalarUDF> {
     let codec = codec.inner();
 
     let udf = rresult_return!(codec.try_decode_udf(name.as_str(), buf.as_ref()));
     let udf = FFI_ScalarUDF::from(udf);
 
-    RResult::ROk(udf)
+    StabbyResult::Ok(udf)
 }
 
 unsafe extern "C" fn try_encode_udf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
     node: FFI_ScalarUDF,
-) -> FFIResult<RVec<u8>> {
+) -> FFIResult<StabbyVec<u8>> {
     let codec = codec.inner();
     let node: Arc<dyn ScalarUDFImpl> = (&node).into();
     let node = ScalarUDF::new_from_shared_impl(node);
@@ -211,25 +213,25 @@ unsafe extern "C" fn try_encode_udf_fn_wrapper(
     let mut bytes = Vec::new();
     rresult_return!(codec.try_encode_udf(&node, &mut bytes));
 
-    RResult::ROk(bytes.into())
+    StabbyResult::Ok(bytes.into())
 }
 
 unsafe extern "C" fn try_decode_udaf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
-    name: RStr,
-    buf: RSlice<u8>,
+    name: StabbyStr,
+    buf: StabbySlice<u8>,
 ) -> FFIResult<FFI_AggregateUDF> {
     let codec_inner = codec.inner();
     let udaf = rresult_return!(codec_inner.try_decode_udaf(name.into(), buf.as_ref()));
     let udaf = FFI_AggregateUDF::from(udaf);
 
-    RResult::ROk(udaf)
+    StabbyResult::Ok(udaf)
 }
 
 unsafe extern "C" fn try_encode_udaf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
     node: FFI_AggregateUDF,
-) -> FFIResult<RVec<u8>> {
+) -> FFIResult<StabbyVec<u8>> {
     let codec = codec.inner();
     let udaf: Arc<dyn AggregateUDFImpl> = (&node).into();
     let udaf = AggregateUDF::new_from_shared_impl(udaf);
@@ -237,25 +239,25 @@ unsafe extern "C" fn try_encode_udaf_fn_wrapper(
     let mut bytes = Vec::new();
     rresult_return!(codec.try_encode_udaf(&udaf, &mut bytes));
 
-    RResult::ROk(bytes.into())
+    StabbyResult::Ok(bytes.into())
 }
 
 unsafe extern "C" fn try_decode_udwf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
-    name: RStr,
-    buf: RSlice<u8>,
+    name: StabbyStr,
+    buf: StabbySlice<u8>,
 ) -> FFIResult<FFI_WindowUDF> {
     let codec = codec.inner();
     let udwf = rresult_return!(codec.try_decode_udwf(name.into(), buf.as_ref()));
     let udwf = FFI_WindowUDF::from(udwf);
 
-    RResult::ROk(udwf)
+    StabbyResult::Ok(udwf)
 }
 
 unsafe extern "C" fn try_encode_udwf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
     node: FFI_WindowUDF,
-) -> FFIResult<RVec<u8>> {
+) -> FFIResult<StabbyVec<u8>> {
     let codec = codec.inner();
     let udwf: Arc<dyn WindowUDFImpl> = (&node).into();
     let udwf = WindowUDF::new_from_shared_impl(udwf);
@@ -263,7 +265,7 @@ unsafe extern "C" fn try_encode_udwf_fn_wrapper(
     let mut bytes = Vec::new();
     rresult_return!(codec.try_encode_udwf(&udwf, &mut bytes));
 
-    RResult::ROk(bytes.into())
+    StabbyResult::Ok(bytes.into())
 }
 
 unsafe extern "C" fn release_fn_wrapper(provider: &mut FFI_LogicalExtensionCodec) {

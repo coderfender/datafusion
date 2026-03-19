@@ -19,8 +19,6 @@ use std::any::Any;
 use std::ffi::c_void;
 use std::sync::Arc;
 
-use abi_stable::StableAbi;
-use abi_stable::std_types::{ROption, RResult, RVec};
 use arrow::datatypes::SchemaRef;
 use async_ffi::{FfiFuture, FutureExt};
 use async_trait::async_trait;
@@ -37,6 +35,9 @@ use datafusion_proto::logical_plan::{
 };
 use datafusion_proto::protobuf::LogicalExprList;
 use prost::Message;
+use stabby::option::Option as StabbyOption;
+use stabby::result::Result as StabbyResult;
+use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
 use super::execution_plan::FFI_ExecutionPlan;
@@ -89,7 +90,7 @@ use crate::{df_result, rresult_return};
 /// It is important to be careful when expanding these functions to be certain which
 /// side of the interface each object refers to.
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_TableProvider {
     /// Return the table schema
     schema: unsafe extern "C" fn(provider: &Self) -> WrappedSchema,
@@ -108,9 +109,9 @@ pub struct FFI_TableProvider {
     scan: unsafe extern "C" fn(
         provider: &Self,
         session: FFI_SessionRef,
-        projections: ROption<RVec<usize>>,
-        filters_serialized: RVec<u8>,
-        limit: ROption<usize>,
+        projections: StabbyOption<StabbyVec<usize>>,
+        filters_serialized: StabbyVec<u8>,
+        limit: StabbyOption<usize>,
     ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
 
     /// Return the type of table. See [`TableType`] for options.
@@ -122,8 +123,9 @@ pub struct FFI_TableProvider {
     supports_filters_pushdown: Option<
         unsafe extern "C" fn(
             provider: &FFI_TableProvider,
-            filters_serialized: RVec<u8>,
-        ) -> FFIResult<RVec<FFI_TableProviderFilterPushDown>>,
+            filters_serialized: StabbyVec<u8>,
+        )
+            -> FFIResult<StabbyVec<FFI_TableProviderFilterPushDown>>,
     >,
 
     insert_into: unsafe extern "C" fn(
@@ -190,7 +192,7 @@ fn supports_filters_pushdown_internal(
     filters_serialized: &[u8],
     task_ctx: &Arc<TaskContext>,
     codec: &dyn LogicalExtensionCodec,
-) -> Result<RVec<FFI_TableProviderFilterPushDown>> {
+) -> Result<StabbyVec<FFI_TableProviderFilterPushDown>> {
     let filters = match filters_serialized.is_empty() {
         true => vec![],
         false => {
@@ -202,7 +204,7 @@ fn supports_filters_pushdown_internal(
     };
     let filters_borrowed: Vec<&Expr> = filters.iter().collect();
 
-    let results: RVec<_> = provider
+    let results: StabbyVec<_> = provider
         .supports_filters_pushdown(&filters_borrowed)?
         .iter()
         .map(|v| v.into())
@@ -213,8 +215,8 @@ fn supports_filters_pushdown_internal(
 
 unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
     provider: &FFI_TableProvider,
-    filters_serialized: RVec<u8>,
-) -> FFIResult<RVec<FFI_TableProviderFilterPushDown>> {
+    filters_serialized: StabbyVec<u8>,
+) -> FFIResult<StabbyVec<FFI_TableProviderFilterPushDown>> {
     let logical_codec: Arc<dyn LogicalExtensionCodec> = (&provider.logical_codec).into();
     let task_ctx = rresult_return!(<Arc<TaskContext>>::try_from(
         &provider.logical_codec.task_ctx_provider
@@ -232,9 +234,9 @@ unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
 unsafe extern "C" fn scan_fn_wrapper(
     provider: &FFI_TableProvider,
     session: FFI_SessionRef,
-    projections: ROption<RVec<usize>>,
-    filters_serialized: RVec<u8>,
-    limit: ROption<usize>,
+    projections: StabbyOption<StabbyVec<usize>>,
+    filters_serialized: StabbyVec<u8>,
+    limit: StabbyOption<usize>,
 ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
     let task_ctx: Result<Arc<TaskContext>, DataFusionError> =
         (&provider.logical_codec.task_ctx_provider).try_into();
@@ -278,7 +280,7 @@ unsafe extern "C" fn scan_fn_wrapper(
                 .await
         );
 
-        RResult::ROk(FFI_ExecutionPlan::new(plan, runtime.clone()))
+        StabbyResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
     }
     .into_ffi()
 }
@@ -315,7 +317,7 @@ unsafe extern "C" fn insert_into_fn_wrapper(
                 .await
         );
 
-        RResult::ROk(FFI_ExecutionPlan::new(plan, runtime.clone()))
+        StabbyResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
     }
     .into_ffi()
 }
@@ -462,7 +464,7 @@ impl TableProvider for ForeignTableProvider {
     ) -> Result<Arc<dyn ExecutionPlan>> {
         let session = FFI_SessionRef::new(session, None, self.0.logical_codec.clone());
 
-        let projections: ROption<RVec<usize>> = projection
+        let projections: StabbyOption<StabbyVec<usize>> = projection
             .map(|p| p.iter().map(|v| v.to_owned()).collect())
             .into();
 

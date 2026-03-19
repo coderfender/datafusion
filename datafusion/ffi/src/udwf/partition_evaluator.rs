@@ -18,8 +18,6 @@
 use std::ffi::c_void;
 use std::ops::Range;
 
-use abi_stable::StableAbi;
-use abi_stable::std_types::{RResult, RVec};
 use arrow::array::ArrayRef;
 use arrow::error::ArrowError;
 use datafusion_common::scalar::ScalarValue;
@@ -27,6 +25,8 @@ use datafusion_common::{DataFusionError, Result};
 use datafusion_expr::PartitionEvaluator;
 use datafusion_expr::window_state::WindowAggState;
 use prost::Message;
+use stabby::result::Result as StabbyResult;
+use stabby::vec::Vec as StabbyVec;
 
 use super::range::FFI_Range;
 use crate::arrow_wrappers::WrappedArray;
@@ -37,24 +37,24 @@ use crate::{df_result, rresult, rresult_return};
 /// For an explanation of each field, see the corresponding function
 /// defined in [`PartitionEvaluator`].
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_PartitionEvaluator {
     pub evaluate_all: unsafe extern "C" fn(
         evaluator: &mut Self,
-        values: RVec<WrappedArray>,
+        values: StabbyVec<WrappedArray>,
         num_rows: usize,
     ) -> FFIResult<WrappedArray>,
 
     pub evaluate: unsafe extern "C" fn(
         evaluator: &mut Self,
-        values: RVec<WrappedArray>,
+        values: StabbyVec<WrappedArray>,
         range: FFI_Range,
-    ) -> FFIResult<RVec<u8>>,
+    ) -> FFIResult<StabbyVec<u8>>,
 
     pub evaluate_all_with_rank: unsafe extern "C" fn(
         evaluator: &Self,
         num_rows: usize,
-        ranks_in_partition: RVec<FFI_Range>,
+        ranks_in_partition: StabbyVec<FFI_Range>,
     ) -> FFIResult<WrappedArray>,
 
     pub get_range: unsafe extern "C" fn(
@@ -107,7 +107,7 @@ impl FFI_PartitionEvaluator {
 
 unsafe extern "C" fn evaluate_all_fn_wrapper(
     evaluator: &mut FFI_PartitionEvaluator,
-    values: RVec<WrappedArray>,
+    values: StabbyVec<WrappedArray>,
     num_rows: usize,
 ) -> FFIResult<WrappedArray> {
     unsafe {
@@ -132,9 +132,9 @@ unsafe extern "C" fn evaluate_all_fn_wrapper(
 
 unsafe extern "C" fn evaluate_fn_wrapper(
     evaluator: &mut FFI_PartitionEvaluator,
-    values: RVec<WrappedArray>,
+    values: StabbyVec<WrappedArray>,
     range: FFI_Range,
-) -> FFIResult<RVec<u8>> {
+) -> FFIResult<StabbyVec<u8>> {
     unsafe {
         let inner = evaluator.inner_mut();
 
@@ -151,14 +151,14 @@ unsafe extern "C" fn evaluate_fn_wrapper(
         let proto_result: datafusion_proto::protobuf::ScalarValue =
             rresult_return!((&scalar_result).try_into());
 
-        RResult::ROk(proto_result.encode_to_vec().into())
+        StabbyResult::Ok(proto_result.encode_to_vec().into())
     }
 }
 
 unsafe extern "C" fn evaluate_all_with_rank_fn_wrapper(
     evaluator: &FFI_PartitionEvaluator,
     num_rows: usize,
-    ranks_in_partition: RVec<FFI_Range>,
+    ranks_in_partition: StabbyVec<FFI_Range>,
 ) -> FFIResult<WrappedArray> {
     unsafe {
         let inner = evaluator.inner();
@@ -284,7 +284,7 @@ impl PartitionEvaluator for ForeignPartitionEvaluator {
             let values = values
                 .iter()
                 .map(WrappedArray::try_from)
-                .collect::<std::result::Result<RVec<_>, ArrowError>>()?;
+                .collect::<std::result::Result<StabbyVec<_>, ArrowError>>()?;
             (self.evaluator.evaluate_all)(&mut self.evaluator, values, num_rows)
         };
 
@@ -302,7 +302,7 @@ impl PartitionEvaluator for ForeignPartitionEvaluator {
             let values = values
                 .iter()
                 .map(WrappedArray::try_from)
-                .collect::<std::result::Result<RVec<_>, ArrowError>>()?;
+                .collect::<std::result::Result<StabbyVec<_>, ArrowError>>()?;
 
             let scalar_bytes = df_result!((self.evaluator.evaluate)(
                 &mut self.evaluator,

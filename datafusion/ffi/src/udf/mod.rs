@@ -19,8 +19,6 @@ use std::ffi::c_void;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use abi_stable::StableAbi;
-use abi_stable::std_types::{RString, RVec};
 use arrow::array::Array;
 use arrow::datatypes::{DataType, Field};
 use arrow::error::ArrowError;
@@ -36,6 +34,12 @@ use datafusion_expr::{
 use return_type_args::{
     FFI_ReturnFieldArgs, ForeignReturnFieldArgs, ForeignReturnFieldArgsOwned,
 };
+use stabby::option::Option as StabbyOption;
+use stabby::result::Result as StabbyResult;
+use stabby::slice::Slice as StabbySlice;
+use stabby::str::Str as StabbyStr;
+use stabby::string::String as StabbyString;
+use stabby::vec::Vec as StabbyVec;
 
 use crate::arrow_wrappers::{WrappedArray, WrappedSchema};
 use crate::config::FFI_ConfigOptions;
@@ -50,13 +54,13 @@ pub mod return_type_args;
 
 /// A stable struct for sharing a [`ScalarUDF`] across FFI boundaries.
 #[repr(C)]
-#[derive(Debug, StableAbi)]
+#[derive(Debug)]
 pub struct FFI_ScalarUDF {
     /// FFI equivalent to the `name` of a [`ScalarUDF`]
-    pub name: RString,
+    pub name: String,
 
     /// FFI equivalent to the `aliases` of a [`ScalarUDF`]
-    pub aliases: RVec<RString>,
+    pub aliases: StabbyVec<StabbyString>,
 
     /// FFI equivalent to the `volatility` of a [`ScalarUDF`]
     pub volatility: FFI_Volatility,
@@ -71,8 +75,8 @@ pub struct FFI_ScalarUDF {
     /// within an AbiStable wrapper.
     pub invoke_with_args: unsafe extern "C" fn(
         udf: &Self,
-        args: RVec<WrappedArray>,
-        arg_fields: RVec<WrappedSchema>,
+        args: StabbyVec<WrappedArray>,
+        arg_fields: StabbyVec<WrappedSchema>,
         num_rows: usize,
         return_field: WrappedSchema,
         config_options: FFI_ConfigOptions,
@@ -87,8 +91,8 @@ pub struct FFI_ScalarUDF {
     /// appropriate calls on the underlying [`ScalarUDF`]
     pub coerce_types: unsafe extern "C" fn(
         udf: &Self,
-        arg_types: RVec<WrappedSchema>,
-    ) -> FFIResult<RVec<WrappedSchema>>,
+        arg_types: StabbyVec<WrappedSchema>,
+    ) -> FFIResult<StabbyVec<WrappedSchema>>,
 
     /// Used to create a clone on the provider of the udf. This should
     /// only need to be called by the receiver of the udf.
@@ -139,8 +143,8 @@ unsafe extern "C" fn return_field_from_args_fn_wrapper(
 
 unsafe extern "C" fn coerce_types_fn_wrapper(
     udf: &FFI_ScalarUDF,
-    arg_types: RVec<WrappedSchema>,
-) -> FFIResult<RVec<WrappedSchema>> {
+    arg_types: StabbyVec<WrappedSchema>,
+) -> FFIResult<StabbyVec<WrappedSchema>> {
     let arg_types = rresult_return!(rvec_wrapped_to_vec_datatype(&arg_types));
 
     let arg_fields = arg_types
@@ -158,8 +162,8 @@ unsafe extern "C" fn coerce_types_fn_wrapper(
 
 unsafe extern "C" fn invoke_with_args_fn_wrapper(
     udf: &FFI_ScalarUDF,
-    args: RVec<WrappedArray>,
-    arg_fields: RVec<WrappedSchema>,
+    args: StabbyVec<WrappedArray>,
+    arg_fields: StabbyVec<WrappedSchema>,
     number_rows: usize,
     return_field: WrappedSchema,
     config_options: FFI_ConfigOptions,
@@ -389,7 +393,7 @@ impl ScalarUDFImpl for ForeignScalarUDF {
         let arg_fields = arg_fields_wrapped
             .into_iter()
             .map(WrappedSchema)
-            .collect::<RVec<_>>();
+            .collect::<StabbyVec<_>>();
 
         let return_field = return_field.as_ref().clone();
         let return_field = WrappedSchema(FFI_ArrowSchema::try_from(return_field)?);

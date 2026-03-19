@@ -530,9 +530,6 @@ name = "async-ffi"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4de21c0feef7e5a556e51af767c953f0501f7f300ba785cc99c47bdc8081a50"
-dependencies = [
- "abi_stable",
-]
 
 [[package]]
 name = "async-recursion"
@@ -2184,7 +2181,6 @@ dependencies = [
 name = "datafusion-ffi"
 version = "52.3.0"
 dependencies = [
- "abi_stable",
  "arrow",
  "arrow-schema",
  "async-ffi",
