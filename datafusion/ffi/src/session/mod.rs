@@ -94,19 +94,15 @@ pub(crate) struct FFI_SessionRef {
         schema: WrappedSchema,
     ) -> FFIResult<FFI_PhysicalExpr>,
 
-    scalar_functions:
-        unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_ScalarUDF)>,
+    scalar_functions: unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_ScalarUDF)>,
 
-    aggregate_functions:
-        unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_AggregateUDF)>,
+    aggregate_functions: unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_AggregateUDF)>,
 
-    window_functions:
-        unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_WindowUDF)>,
+    window_functions: unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_WindowUDF)>,
 
     table_options: unsafe extern "C" fn(&Self) -> SVec<(SString, SString)>,
 
-    default_table_options:
-        unsafe extern "C" fn(&Self) -> SVec<(SString, SString)>,
+    default_table_options: unsafe extern "C" fn(&Self) -> SVec<(SString, SString)>,
 
     task_ctx: unsafe extern "C" fn(&Self) -> FFI_TaskContext,
 
@@ -245,9 +241,7 @@ unsafe extern "C" fn window_functions_fn_wrapper(
         .collect()
 }
 
-fn table_options_to_rhash(
-    mut options: TableOptions,
-) -> SVec<(SString, SString)> {
+fn table_options_to_rhash(mut options: TableOptions) -> SVec<(SString, SString)> {
     // It is important that we mutate options here and set current format
     // to None so that when we call `entries()` we get ALL format entries.
     // We will pass current_format as a special case and strip it on the
@@ -466,9 +460,7 @@ impl Clone for FFI_SessionRef {
     }
 }
 
-fn table_options_from_rhashmap(
-    options: SVec<(SString, SString)>,
-) -> TableOptions {
+fn table_options_from_rhashmap(options: SVec<(SString, SString)>) -> TableOptions {
     let mut options: HashMap<String, String> = options
         .into_iter()
         .map(|kv_pair| (kv_pair.0.to_string(), kv_pair.1.to_string()))

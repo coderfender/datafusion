@@ -47,11 +47,7 @@ pub struct FFI_ExtensionOptions {
     pub cloned: unsafe extern "C" fn(&Self) -> FFI_ExtensionOptions,
 
     /// Set the given `key`, `value` pair
-    pub set: unsafe extern "C" fn(
-        &mut Self,
-        key: SStr,
-        value: SStr,
-    ) -> FFIResult<()>,
+    pub set: unsafe extern "C" fn(&mut Self, key: SStr, value: SStr) -> FFIResult<()>,
 
     /// Returns the [`ConfigEntry`] stored in this [`ExtensionOptions`]
     pub entries: unsafe extern "C" fn(&Self) -> SVec<(SString, SString)>,

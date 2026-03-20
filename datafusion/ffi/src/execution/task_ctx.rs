@@ -48,16 +48,14 @@ pub struct FFI_TaskContext {
     pub session_config: unsafe extern "C" fn(&Self) -> FFI_SessionConfig,
 
     /// Returns a vec of name-function pairs for scalar functions.
-    pub scalar_functions:
-        unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_ScalarUDF)>,
+    pub scalar_functions: unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_ScalarUDF)>,
 
     /// Returns a vec of name-function pairs for aggregate functions.
     pub aggregate_functions:
         unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_AggregateUDF)>,
 
     /// Returns a vec of name-function pairs for window functions.
-    pub window_functions:
-        unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_WindowUDF)>,
+    pub window_functions: unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_WindowUDF)>,
 
     /// Release the memory of the private data when it is no longer being used.
     pub release: unsafe extern "C" fn(arg: &mut Self),
@@ -92,9 +90,7 @@ unsafe extern "C" fn session_id_fn_wrapper(ctx: &FFI_TaskContext) -> SString {
     }
 }
 
-unsafe extern "C" fn task_id_fn_wrapper(
-    ctx: &FFI_TaskContext,
-) -> FfiOption<SString> {
+unsafe extern "C" fn task_id_fn_wrapper(ctx: &FFI_TaskContext) -> FfiOption<SString> {
     unsafe {
         let ctx = ctx.inner();
         ctx.task_id().map(|s| s.as_str().into()).into()

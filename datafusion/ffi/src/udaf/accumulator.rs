@@ -45,14 +45,11 @@ pub struct FFI_Accumulator {
     ) -> FFIResult<()>,
 
     // Evaluate and return a ScalarValues as protobuf bytes
-    pub evaluate:
-        unsafe extern "C" fn(accumulator: &mut Self) -> FFIResult<SVec<u8>>,
+    pub evaluate: unsafe extern "C" fn(accumulator: &mut Self) -> FFIResult<SVec<u8>>,
 
     pub size: unsafe extern "C" fn(accumulator: &Self) -> usize,
 
-    pub state: unsafe extern "C" fn(
-        accumulator: &mut Self,
-    ) -> FFIResult<SVec<SVec<u8>>>,
+    pub state: unsafe extern "C" fn(accumulator: &mut Self) -> FFIResult<SVec<SVec<u8>>>,
 
     pub merge_batch: unsafe extern "C" fn(
         accumulator: &mut Self,

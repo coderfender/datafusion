@@ -46,10 +46,8 @@ use crate::{df_result, rresult_return};
 pub struct FFI_TableFunction {
     /// Equivalent to the `call` function of the TableFunctionImpl.
     /// The arguments are Expr passed as protobuf encoded bytes.
-    pub call: unsafe extern "C" fn(
-        udtf: &Self,
-        args: SVec<u8>,
-    ) -> FFIResult<FFI_TableProvider>,
+    pub call:
+        unsafe extern "C" fn(udtf: &Self, args: SVec<u8>) -> FFIResult<FFI_TableProvider>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 

@@ -160,10 +160,8 @@ pub(crate) mod tests {
         const VALID_VALUE: &str = "valid_value";
         const ERROR_VALUE: &str = "error_value";
 
-        let ok_r_result: FFIResult<SString> =
-            FfiResult::Ok(SString::from(VALID_VALUE));
-        let err_r_result: FFIResult<SString> =
-            FfiResult::Err(SString::from(ERROR_VALUE));
+        let ok_r_result: FFIResult<SString> = FfiResult::Ok(SString::from(VALID_VALUE));
+        let err_r_result: FFIResult<SString> = FfiResult::Err(SString::from(ERROR_VALUE));
 
         let returned_ok_result = df_result!(ok_r_result);
         assert!(returned_ok_result.is_ok());

@@ -77,10 +77,8 @@ pub struct FFI_PhysicalExpr {
 
     pub children: unsafe extern "C" fn(&Self) -> SVec<FFI_PhysicalExpr>,
 
-    pub new_with_children: unsafe extern "C" fn(
-        &Self,
-        children: &SVec<FFI_PhysicalExpr>,
-    ) -> FFIResult<Self>,
+    pub new_with_children:
+        unsafe extern "C" fn(&Self, children: &SVec<FFI_PhysicalExpr>) -> FFIResult<Self>,
 
     pub evaluate_bounds: unsafe extern "C" fn(
         &Self,
@@ -99,13 +97,12 @@ pub struct FFI_PhysicalExpr {
         children: SVec<FFI_Distribution>,
     ) -> FFIResult<FFI_Distribution>,
 
-    pub propagate_statistics: unsafe extern "C" fn(
-        &Self,
-        parent: FFI_Distribution,
-        children: SVec<FFI_Distribution>,
-    ) -> FFIResult<
-        FfiOption<SVec<FFI_Distribution>>,
-    >,
+    pub propagate_statistics:
+        unsafe extern "C" fn(
+            &Self,
+            parent: FFI_Distribution,
+            children: SVec<FFI_Distribution>,
+        ) -> FFIResult<FfiOption<SVec<FFI_Distribution>>>,
 
     pub get_properties: unsafe extern "C" fn(
         &Self,
@@ -360,9 +357,7 @@ unsafe extern "C" fn get_properties_fn_wrapper(
     )
 }
 
-unsafe extern "C" fn fmt_sql_fn_wrapper(
-    expr: &FFI_PhysicalExpr,
-) -> FFIResult<SString> {
+unsafe extern "C" fn fmt_sql_fn_wrapper(expr: &FFI_PhysicalExpr) -> FFIResult<SString> {
     let expr = expr.inner();
     let result = fmt_sql(expr.as_ref()).to_string();
     FfiResult::Ok(result.into())

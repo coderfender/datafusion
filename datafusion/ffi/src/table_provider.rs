@@ -123,8 +123,7 @@ pub struct FFI_TableProvider {
         unsafe extern "C" fn(
             provider: &FFI_TableProvider,
             filters_serialized: SVec<u8>,
-        )
-            -> FFIResult<SVec<FfiTableProviderFilterPushDown>>,
+        ) -> FFIResult<SVec<FfiTableProviderFilterPushDown>>,
     >,
 
     insert_into: unsafe extern "C" fn(
