@@ -26,7 +26,6 @@ use crate::physical_expr::FFI_PhysicalExpr;
 
 /// A stable struct for sharing [`PhysicalSortExpr`] across FFI boundaries.
 /// See [`PhysicalSortExpr`] for the meaning of each field.
-
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_PhysicalSortExpr {

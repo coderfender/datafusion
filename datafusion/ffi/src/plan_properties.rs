@@ -40,7 +40,7 @@ pub struct FFI_PlanProperties {
     pub output_partitioning: unsafe extern "C" fn(plan: &Self) -> FFI_Partitioning,
 
     /// Return the emission type of the plan.
-    pub emission_type: unsafe extern "C" fn(plan: &Self) -> FFI_EmissionType,
+    pub emission_type: unsafe extern "C" fn(plan: &Self) -> FfiEmissionType,
 
     /// Indicate boundedness of the plan and its memory requirements.
     pub boundedness: unsafe extern "C" fn(plan: &Self) -> FFI_Boundedness,
@@ -86,7 +86,7 @@ unsafe extern "C" fn output_partitioning_fn_wrapper(
 
 unsafe extern "C" fn emission_type_fn_wrapper(
     properties: &FFI_PlanProperties,
-) -> FFI_EmissionType {
+) -> FfiEmissionType {
     properties.inner().emission_type.into()
 }
 
@@ -233,28 +233,28 @@ impl From<FFI_Boundedness> for Boundedness {
 /// FFI safe version of [`EmissionType`].
 #[repr(u8)]
 #[derive(Clone)]
-pub enum FFI_EmissionType {
+pub enum FfiEmissionType {
     Incremental,
     Final,
     Both,
 }
 
-impl From<EmissionType> for FFI_EmissionType {
+impl From<EmissionType> for FfiEmissionType {
     fn from(value: EmissionType) -> Self {
         match value {
-            EmissionType::Incremental => FFI_EmissionType::Incremental,
-            EmissionType::Final => FFI_EmissionType::Final,
-            EmissionType::Both => FFI_EmissionType::Both,
+            EmissionType::Incremental => FfiEmissionType::Incremental,
+            EmissionType::Final => FfiEmissionType::Final,
+            EmissionType::Both => FfiEmissionType::Both,
         }
     }
 }
 
-impl From<FFI_EmissionType> for EmissionType {
-    fn from(value: FFI_EmissionType) -> Self {
+impl From<FfiEmissionType> for EmissionType {
+    fn from(value: FfiEmissionType) -> Self {
         match value {
-            FFI_EmissionType::Incremental => EmissionType::Incremental,
-            FFI_EmissionType::Final => EmissionType::Final,
-            FFI_EmissionType::Both => EmissionType::Both,
+            FfiEmissionType::Incremental => EmissionType::Incremental,
+            FfiEmissionType::Final => EmissionType::Final,
+            FfiEmissionType::Both => EmissionType::Both,
         }
     }
 }

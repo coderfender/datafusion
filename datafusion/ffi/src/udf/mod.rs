@@ -45,7 +45,7 @@ use crate::expr::columnar_value::FFI_ColumnarValue;
 use crate::util::{
     FFIResult, rvec_wrapped_to_vec_datatype, vec_datatype_to_rvec_wrapped,
 };
-use crate::volatility::FFI_Volatility;
+use crate::volatility::FfiVolatility;
 use crate::{df_result, rresult, rresult_return};
 
 pub mod return_type_args;
@@ -55,13 +55,13 @@ pub mod return_type_args;
 #[derive(Debug)]
 pub struct FFI_ScalarUDF {
     /// FFI equivalent to the `name` of a [`ScalarUDF`]
-    pub name: String,
+    pub name: StabbyString,
 
     /// FFI equivalent to the `aliases` of a [`ScalarUDF`]
     pub aliases: StabbyVec<StabbyString>,
 
     /// FFI equivalent to the `volatility` of a [`ScalarUDF`]
-    pub volatility: FFI_Volatility,
+    pub volatility: FfiVolatility,
 
     /// Determines the return info of the underlying [`ScalarUDF`].
     pub return_field_from_args: unsafe extern "C" fn(
@@ -314,7 +314,7 @@ impl From<&FFI_ScalarUDF> for Arc<dyn ScalarUDFImpl> {
         if (udf.library_marker_id)() == crate::get_library_marker_id() {
             Arc::clone(udf.inner().inner())
         } else {
-            let name = udf.name.to_owned();
+            let name = udf.name.to_string();
             let signature = Signature::user_defined((&udf.volatility).into());
 
             let aliases = udf.aliases.iter().map(|s| s.to_string()).collect();
