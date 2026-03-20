@@ -29,6 +29,7 @@ use datafusion_proto::physical_plan::PhysicalExtensionCodec;
 use stabby::slice::Slice as StabbySlice;
 use stabby::str::Str as StabbyStr;
 use stabby::vec::Vec as StabbyVec;
+use std::{any::Any, ffi::c_void, sync::Arc};
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContextProvider;
@@ -113,14 +114,14 @@ unsafe impl Send for FFI_PhysicalExtensionCodec {}
 unsafe impl Sync for FFI_PhysicalExtensionCodec {}
 
 struct PhysicalExtensionCodecPrivateData {
-    provider: Arc<dyn PhysicalExtensionCodec>,
+    codec: Arc<dyn PhysicalExtensionCodec>,
     runtime: Option<Handle>,
 }
 
 impl FFI_PhysicalExtensionCodec {
     fn inner(&self) -> &Arc<dyn PhysicalExtensionCodec> {
         let private_data = self.private_data as *const PhysicalExtensionCodecPrivateData;
-        unsafe { &(*private_data).provider }
+        unsafe { &(*private_data).codec }
     }
 
     fn runtime(&self) -> &Option<Handle> {
@@ -134,6 +135,7 @@ unsafe extern "C" fn try_decode_fn_wrapper(
     buf: StabbySlice<u8>,
     inputs: StabbyVec<FFI_ExecutionPlan>,
 ) -> FFIResult<FFI_ExecutionPlan> {
+    let runtime = codec.runtime().clone();
     let task_ctx: Arc<TaskContext> =
         rresult_return!((&codec.task_ctx_provider).try_into());
     let codec = codec.inner();
@@ -146,7 +148,8 @@ unsafe extern "C" fn try_decode_fn_wrapper(
     let plan =
         rresult_return!(codec.try_decode(buf.as_ref(), &inputs, task_ctx.as_ref()));
 
-    FfiResult::Ok(FFI_ExecutionPlan::new(plan, None))
+    FfiResult::Ok(FFI_ExecutionPlan::new(plan, runtime))
+
 }
 
 unsafe extern "C" fn try_encode_fn_wrapper(
@@ -242,11 +245,10 @@ unsafe extern "C" fn try_encode_udwf_fn_wrapper(
     FfiResult::Ok(bytes.into_iter().collect())
 }
 
-unsafe extern "C" fn release_fn_wrapper(provider: &mut FFI_PhysicalExtensionCodec) {
+unsafe extern "C" fn release_fn_wrapper(codec: &mut FFI_PhysicalExtensionCodec) {
     unsafe {
-        let private_data = Box::from_raw(
-            provider.private_data as *mut PhysicalExtensionCodecPrivateData,
-        );
+        let private_data =
+            Box::from_raw(codec.private_data as *mut PhysicalExtensionCodecPrivateData);
         drop(private_data);
     }
 }
@@ -269,13 +271,18 @@ impl Drop for FFI_PhysicalExtensionCodec {
 impl FFI_PhysicalExtensionCodec {
     /// Creates a new [`FFI_PhysicalExtensionCodec`].
     pub fn new(
-        provider: Arc<dyn PhysicalExtensionCodec + Send>,
+        codec: Arc<dyn PhysicalExtensionCodec + Send>,
         runtime: Option<Handle>,
         task_ctx_provider: impl Into<FFI_TaskContextProvider>,
     ) -> Self {
+        if let Some(codec) = (Arc::clone(&codec) as Arc<dyn Any>)
+            .downcast_ref::<ForeignPhysicalExtensionCodec>()
+        {
+            return codec.0.clone();
+        }
+
         let task_ctx_provider = task_ctx_provider.into();
-        let private_data =
-            Box::new(PhysicalExtensionCodecPrivateData { provider, runtime });
+        let private_data = Box::new(PhysicalExtensionCodecPrivateData { codec, runtime });
 
         Self {
             try_decode: try_decode_fn_wrapper,
@@ -308,11 +315,11 @@ unsafe impl Send for ForeignPhysicalExtensionCodec {}
 unsafe impl Sync for ForeignPhysicalExtensionCodec {}
 
 impl From<&FFI_PhysicalExtensionCodec> for Arc<dyn PhysicalExtensionCodec> {
-    fn from(provider: &FFI_PhysicalExtensionCodec) -> Self {
-        if (provider.library_marker_id)() == crate::get_library_marker_id() {
-            Arc::clone(provider.inner())
+    fn from(codec: &FFI_PhysicalExtensionCodec) -> Self {
+        if (codec.library_marker_id)() == crate::get_library_marker_id() {
+            Arc::clone(codec.inner())
         } else {
-            Arc::new(ForeignPhysicalExtensionCodec(provider.clone()))
+            Arc::new(ForeignPhysicalExtensionCodec(codec.clone()))
         }
     }
 }

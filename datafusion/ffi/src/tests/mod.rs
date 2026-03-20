@@ -31,6 +31,8 @@ use udf_udaf_udwf::{
 use crate::catalog_provider::FFI_CatalogProvider;
 use crate::catalog_provider_list::FFI_CatalogProviderList;
 use crate::config::extension_options::FFI_ExtensionOptions;
+use crate::execution_plan::FFI_ExecutionPlan;
+use crate::execution_plan::tests::EmptyExec;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::table_provider::FFI_TableProvider;
 use crate::table_provider_factory::FFI_TableProviderFactory;
@@ -92,6 +94,8 @@ pub struct ForeignLibraryModule {
     /// Create extension options, for either ConfigOptions or TableOptions
     pub create_extension_options: extern "C" fn() -> FFI_ExtensionOptions,
 
+    pub create_empty_exec: extern "C" fn() -> FFI_ExecutionPlan,
+
     pub version: extern "C" fn() -> u64,
 }
 
@@ -130,6 +134,13 @@ extern "C" fn construct_table_provider_factory(
     table_provider_factory::create(codec)
 }
 
+pub(crate) extern "C" fn create_empty_exec() -> FFI_ExecutionPlan {
+    let schema = Arc::new(Schema::new(vec![Field::new("a", DataType::Float32, false)]));
+
+    let plan = Arc::new(EmptyExec::new(schema));
+    FFI_ExecutionPlan::new(plan, None)
+}
+
 /// This defines the entry point for using the module.
 #[unsafe(no_mangle)]
 pub extern "C" fn datafusion_ffi_get_module() -> ForeignLibraryModule {
@@ -146,6 +157,7 @@ pub extern "C" fn datafusion_ffi_get_module() -> ForeignLibraryModule {
         create_stddev_udaf: create_ffi_stddev_func,
         create_rank_udwf: create_ffi_rank_func,
         create_extension_options: config::create_extension_options,
+        create_empty_exec,
         version: super::version,
     }
 }
