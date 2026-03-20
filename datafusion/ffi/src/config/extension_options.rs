@@ -21,12 +21,13 @@ use std::ffi::c_void;
 
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_common::{Result, exec_err};
-use stabby::result::Result as StabbyResult;
+
 use stabby::str::Str as StabbyStr;
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 
 use crate::df_result;
+use crate::util::{FFIResult, FfiResult};
 
 /// A stable struct for sharing [`ExtensionOptions`] across FFI boundaries.
 ///
@@ -50,7 +51,7 @@ pub struct FFI_ExtensionOptions {
         &mut Self,
         key: StabbyStr,
         value: StabbyStr,
-    ) -> StabbyResult<(), StabbyString>,
+    ) -> FFIResult<()>,
 
     /// Returns the [`ConfigEntry`] stored in this [`ExtensionOptions`]
     pub entries: unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, StabbyString)>,
@@ -98,11 +99,11 @@ unsafe extern "C" fn set_fn_wrapper(
     options: &mut FFI_ExtensionOptions,
     key: StabbyStr,
     value: StabbyStr,
-) -> StabbyResult<(), StabbyString> {
+) -> FFIResult<()> {
     let _ = options
         .inner_mut()
         .insert(key.as_str().into(), value.as_str().into());
-    StabbyResult::Ok(())
+    FfiResult::Ok(())
 }
 
 unsafe extern "C" fn entries_fn_wrapper(

@@ -102,13 +102,10 @@ unsafe extern "C" fn children_fn_wrapper(
         let plan = &(*private_data).plan;
         let runtime = &(*private_data).runtime;
 
-        let children: Vec<_> = plan
-            .children()
+        plan.children()
             .into_iter()
             .map(|child| FFI_ExecutionPlan::new(Arc::clone(child), runtime.clone()))
-            .collect();
-
-        children.into()
+            .collect()
     }
 }
 

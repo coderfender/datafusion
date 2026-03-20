@@ -33,8 +33,8 @@ use datafusion_functions_aggregate_common::order::AggregateOrderSensitivity;
 use datafusion_proto_common::from_proto::parse_proto_fields_to_fields;
 use groups_accumulator::FFI_GroupsAccumulator;
 use prost::{DecodeError, Message};
-use stabby::option::Option as StabbyOption;
-use stabby::result::Result as StabbyResult;
+
+
 use stabby::str::Str as StabbyStr;
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
@@ -44,7 +44,7 @@ use std::sync::Arc;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
-    FFIResult, rvec_wrapped_to_vec_datatype, rvec_wrapped_to_vec_fieldref,
+    FFIResult, FfiOption, FfiResult, rvec_wrapped_to_vec_datatype, rvec_wrapped_to_vec_fieldref,
     vec_datatype_to_rvec_wrapped, vec_fieldref_to_rvec_wrapped,
 };
 use crate::volatility::FFI_Volatility;
@@ -116,7 +116,7 @@ pub struct FFI_AggregateUDF {
         unsafe extern "C" fn(
             udaf: &FFI_AggregateUDF,
             beneficial_ordering: bool,
-        ) -> FFIResult<StabbyOption<FFI_AggregateUDF>>,
+        ) -> FFIResult<FfiOption<FFI_AggregateUDF>>,
 
     /// FFI equivalent to [`AggregateUDF::order_sensitivity`]
     pub order_sensitivity:
@@ -251,7 +251,7 @@ unsafe extern "C" fn groups_accumulator_supported_fn_wrapper(
 unsafe extern "C" fn with_beneficial_ordering_fn_wrapper(
     udaf: &FFI_AggregateUDF,
     beneficial_ordering: bool,
-) -> FFIResult<StabbyOption<FFI_AggregateUDF>> {
+) -> FFIResult<FfiOption<FFI_AggregateUDF>> {
     unsafe {
         let udaf = udaf.inner().as_ref().clone();
 
@@ -264,7 +264,7 @@ unsafe extern "C" fn with_beneficial_ordering_fn_wrapper(
         .flatten()
         .map(|func| FFI_AggregateUDF::from(Arc::new(func)));
 
-        StabbyResult::Ok(result.into())
+        FfiResult::Ok(result.into())
     }
 }
 
@@ -315,10 +315,10 @@ unsafe extern "C" fn state_fields_fn_wrapper(
                 .collect::<Result<Vec<_>>>()
         )
         .into_iter()
-        .map(|field| field.encode_to_vec().into())
+        .map(|field| field.encode_to_vec().into_iter().collect())
         .collect();
 
-        StabbyResult::ROk(state_fields)
+        FfiResult::Ok(state_fields)
     }
 }
 
@@ -511,7 +511,7 @@ impl AggregateUDFImpl for ForeignAggregateUDF {
                 .map(|v| v.map_err(DataFusionError::from))
                 .collect::<Result<Vec<_>>>()?
                 .into_iter()
-                .map(|proto_field| proto_field.encode_to_vec().into())
+                .map(|proto_field| proto_field.encode_to_vec().into_iter().collect())
                 .collect();
 
             let fields = df_result!((self.udaf.state_fields)(
@@ -610,7 +610,8 @@ impl AggregateUDFImpl for ForeignAggregateUDF {
     }
 }
 
-#[derive(Debug, stabby::stabby)]
+#[repr(C)]
+#[derive(Debug)]
 pub enum FFI_AggregateOrderSensitivity {
     Insensitive,
     HardRequirement,

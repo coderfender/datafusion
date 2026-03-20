@@ -57,7 +57,8 @@ impl TryFrom<PartitionEvaluatorArgs<'_>> for FFI_PartitionEvaluatorArgs {
             .iter()
             .map(|input_type| FFI_ArrowSchema::try_from(input_type).map(WrappedSchema))
             .collect::<Result<Vec<_>, ArrowError>>()?
-            .into();
+            .into_iter()
+            .collect();
 
         Ok(Self {
             input_exprs,

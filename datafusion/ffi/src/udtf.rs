@@ -29,14 +29,14 @@ use datafusion_proto::logical_plan::{
 };
 use datafusion_proto::protobuf::LogicalExprList;
 use prost::Message;
-use stabby::result::Result as StabbyResult;
+
 use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::table_provider::FFI_TableProvider;
-use crate::util::FFIResult;
+use crate::util::{FFIResult, FfiResult};
 use crate::{df_result, rresult_return};
 
 /// A stable struct for sharing a [`TableFunctionImpl`] across FFI boundaries.
@@ -109,7 +109,7 @@ unsafe extern "C" fn call_fn_wrapper(
     ));
 
     let table_provider = rresult_return!(udtf_inner.call(&args));
-    StabbyResult::Ok(FFI_TableProvider::new_with_ffi_codec(
+    FfiResult::Ok(FFI_TableProvider::new_with_ffi_codec(
         table_provider,
         false,
         runtime,
@@ -215,7 +215,7 @@ impl TableFunctionImpl for ForeignTableFunction {
         let expr_list = LogicalExprList {
             expr: serialize_exprs(args, codec.as_ref())?,
         };
-        let filters_serialized = expr_list.encode_to_vec().into();
+        let filters_serialized = expr_list.encode_to_vec().into_iter().collect();
 
         let table_provider = unsafe { (self.0.call)(&self.0, filters_serialized) };
 

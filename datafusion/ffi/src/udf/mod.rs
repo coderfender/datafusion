@@ -34,10 +34,8 @@ use datafusion_expr::{
 use return_type_args::{
     FFI_ReturnFieldArgs, ForeignReturnFieldArgs, ForeignReturnFieldArgsOwned,
 };
-use stabby::option::Option as StabbyOption;
-use stabby::result::Result as StabbyResult;
-use stabby::slice::Slice as StabbySlice;
-use stabby::str::Str as StabbyStr;
+
+
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 
@@ -316,7 +314,7 @@ impl From<&FFI_ScalarUDF> for Arc<dyn ScalarUDFImpl> {
         if (udf.library_marker_id)() == crate::get_library_marker_id() {
             Arc::clone(udf.inner().inner())
         } else {
-            let name = udf.name.to_owned().into();
+            let name = udf.name.to_owned();
             let signature = Signature::user_defined((&udf.volatility).into());
 
             let aliases = udf.aliases.iter().map(|s| s.to_string()).collect();
@@ -383,7 +381,8 @@ impl ScalarUDFImpl for ForeignScalarUDF {
                 })
             })
             .collect::<std::result::Result<Vec<_>, ArrowError>>()?
-            .into();
+            .into_iter()
+            .collect();
 
         let arg_fields_wrapped = arg_fields
             .iter()

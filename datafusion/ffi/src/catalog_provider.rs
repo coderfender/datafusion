@@ -24,8 +24,6 @@ use datafusion_common::error::Result;
 use datafusion_proto::logical_plan::{
     DefaultLogicalExtensionCodec, LogicalExtensionCodec,
 };
-use stabby::option::Option as StabbyOption;
-use stabby::result::Result as StabbyResult;
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
@@ -33,7 +31,7 @@ use tokio::runtime::Handle;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::schema_provider::{FFI_SchemaProvider, ForeignSchemaProvider};
-use crate::util::FFIResult;
+use crate::util::{FFIResult, FfiOption, FfiResult};
 use crate::{df_result, rresult_return};
 
 /// A stable struct for sharing [`CatalogProvider`] across FFI boundaries.
@@ -45,21 +43,21 @@ pub struct FFI_CatalogProvider {
     pub schema: unsafe extern "C" fn(
         provider: &Self,
         name: StabbyString,
-    ) -> StabbyOption<FFI_SchemaProvider>,
+    ) -> FfiOption<FFI_SchemaProvider>,
 
     pub register_schema:
         unsafe extern "C" fn(
             provider: &Self,
             name: StabbyString,
             schema: &FFI_SchemaProvider,
-        ) -> FFIResult<StabbyOption<FFI_SchemaProvider>>,
+        ) -> FFIResult<FfiOption<FFI_SchemaProvider>>,
 
     pub deregister_schema:
         unsafe extern "C" fn(
             provider: &Self,
             name: StabbyString,
             cascade: bool,
-        ) -> FFIResult<StabbyOption<FFI_SchemaProvider>>,
+        ) -> FFIResult<FfiOption<FFI_SchemaProvider>>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 
@@ -119,7 +117,7 @@ unsafe extern "C" fn schema_names_fn_wrapper(
 unsafe extern "C" fn schema_fn_wrapper(
     provider: &FFI_CatalogProvider,
     name: StabbyString,
-) -> StabbyOption<FFI_SchemaProvider> {
+) -> FfiOption<FFI_SchemaProvider> {
     unsafe {
         let maybe_schema = provider.inner().schema(name.as_str());
         maybe_schema
@@ -138,7 +136,7 @@ unsafe extern "C" fn register_schema_fn_wrapper(
     provider: &FFI_CatalogProvider,
     name: StabbyString,
     schema: &FFI_SchemaProvider,
-) -> FFIResult<StabbyOption<FFI_SchemaProvider>> {
+) -> FFIResult<FfiOption<FFI_SchemaProvider>> {
     unsafe {
         let runtime = provider.runtime();
         let inner_provider = provider.inner();
@@ -155,7 +153,7 @@ unsafe extern "C" fn register_schema_fn_wrapper(
                 })
                 .into();
 
-        StabbyResult::Ok(returned_schema)
+        FfiResult::Ok(returned_schema)
     }
 }
 
@@ -163,7 +161,7 @@ unsafe extern "C" fn deregister_schema_fn_wrapper(
     provider: &FFI_CatalogProvider,
     name: StabbyString,
     cascade: bool,
-) -> FFIResult<StabbyOption<FFI_SchemaProvider>> {
+) -> FFIResult<FfiOption<FFI_SchemaProvider>> {
     unsafe {
         let runtime = provider.runtime();
         let inner_provider = provider.inner();
@@ -171,7 +169,7 @@ unsafe extern "C" fn deregister_schema_fn_wrapper(
         let maybe_schema =
             rresult_return!(inner_provider.deregister_schema(name.as_str(), cascade));
 
-        StabbyResult::Ok(
+        FfiResult::Ok(
             maybe_schema
                 .map(|schema| {
                     FFI_SchemaProvider::new_with_ffi_codec(

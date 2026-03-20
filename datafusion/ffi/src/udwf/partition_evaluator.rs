@@ -25,12 +25,12 @@ use datafusion_common::{DataFusionError, Result};
 use datafusion_expr::PartitionEvaluator;
 use datafusion_expr::window_state::WindowAggState;
 use prost::Message;
-use stabby::result::Result as StabbyResult;
+
 use stabby::vec::Vec as StabbyVec;
 
 use super::range::FFI_Range;
 use crate::arrow_wrappers::WrappedArray;
-use crate::util::FFIResult;
+use crate::util::{FFIResult, FfiResult};
 use crate::{df_result, rresult, rresult_return};
 
 /// A stable struct for sharing [`PartitionEvaluator`] across FFI boundaries.
@@ -151,7 +151,7 @@ unsafe extern "C" fn evaluate_fn_wrapper(
         let proto_result: datafusion_proto::protobuf::ScalarValue =
             rresult_return!((&scalar_result).try_into());
 
-        StabbyResult::Ok(proto_result.encode_to_vec().into())
+        FfiResult::Ok(proto_result.encode_to_vec().into_iter().collect())
     }
 }
 
