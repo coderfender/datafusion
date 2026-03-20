@@ -23,7 +23,6 @@ use datafusion_catalog::{CatalogProvider, CatalogProviderList};
 use datafusion_proto::logical_plan::{
     DefaultLogicalExtensionCodec, LogicalExtensionCodec,
 };
-use stabby::option::Option as StabbyOption;
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
@@ -31,6 +30,7 @@ use tokio::runtime::Handle;
 use crate::catalog_provider::{FFI_CatalogProvider, ForeignCatalogProvider};
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
+use crate::util::FfiOption;
 
 /// A stable struct for sharing [`CatalogProviderList`] across FFI boundaries.
 #[repr(C)]
@@ -41,7 +41,7 @@ pub struct FFI_CatalogProviderList {
         &Self,
         name: StabbyString,
         catalog: &FFI_CatalogProvider,
-    ) -> StabbyOption<FFI_CatalogProvider>,
+    ) -> FfiOption<FFI_CatalogProvider>,
 
     /// List of existing catalogs
     pub catalog_names: unsafe extern "C" fn(&Self) -> StabbyVec<StabbyString>,
@@ -50,7 +50,7 @@ pub struct FFI_CatalogProviderList {
     pub catalog: unsafe extern "C" fn(
         &Self,
         name: StabbyString,
-    ) -> StabbyOption<FFI_CatalogProvider>,
+    ) -> FfiOption<FFI_CatalogProvider>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 
@@ -111,7 +111,7 @@ unsafe extern "C" fn register_catalog_fn_wrapper(
     provider: &FFI_CatalogProviderList,
     name: StabbyString,
     catalog: &FFI_CatalogProvider,
-) -> StabbyOption<FFI_CatalogProvider> {
+) -> FfiOption<FFI_CatalogProvider> {
     unsafe {
         let runtime = provider.runtime();
         let inner_provider = provider.inner();
@@ -133,7 +133,7 @@ unsafe extern "C" fn register_catalog_fn_wrapper(
 unsafe extern "C" fn catalog_fn_wrapper(
     provider: &FFI_CatalogProviderList,
     name: StabbyString,
-) -> StabbyOption<FFI_CatalogProvider> {
+) -> FfiOption<FFI_CatalogProvider> {
     unsafe {
         let runtime = provider.runtime();
         let inner_provider = provider.inner();

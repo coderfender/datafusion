@@ -35,8 +35,8 @@ use datafusion_proto::logical_plan::{
 };
 use datafusion_proto::protobuf::LogicalExprList;
 use prost::Message;
-use stabby::option::Option as StabbyOption;
-use stabby::result::Result as StabbyResult;
+
+
 use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
@@ -47,7 +47,7 @@ use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::session::{FFI_SessionRef, ForeignSession};
 use crate::table_source::{FFI_TableProviderFilterPushDown, FFI_TableType};
-use crate::util::FFIResult;
+use crate::util::{FFIResult, FfiOption, FfiResult};
 use crate::{df_result, rresult_return};
 
 /// A stable struct for sharing [`TableProvider`] across FFI boundaries.
@@ -109,9 +109,9 @@ pub struct FFI_TableProvider {
     scan: unsafe extern "C" fn(
         provider: &Self,
         session: FFI_SessionRef,
-        projections: StabbyOption<StabbyVec<usize>>,
+        projections: FfiOption<StabbyVec<usize>>,
         filters_serialized: StabbyVec<u8>,
-        limit: StabbyOption<usize>,
+        limit: FfiOption<usize>,
     ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
 
     /// Return the type of table. See [`TableType`] for options.
@@ -234,9 +234,9 @@ unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
 unsafe extern "C" fn scan_fn_wrapper(
     provider: &FFI_TableProvider,
     session: FFI_SessionRef,
-    projections: StabbyOption<StabbyVec<usize>>,
+    projections: FfiOption<StabbyVec<usize>>,
     filters_serialized: StabbyVec<u8>,
-    limit: StabbyOption<usize>,
+    limit: FfiOption<usize>,
 ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
     let task_ctx: Result<Arc<TaskContext>, DataFusionError> =
         (&provider.logical_codec.task_ctx_provider).try_into();
@@ -279,7 +279,7 @@ unsafe extern "C" fn scan_fn_wrapper(
                 .await
         );
 
-        StabbyResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
+        FfiResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
     }
     .into_ffi()
 }
@@ -316,7 +316,7 @@ unsafe extern "C" fn insert_into_fn_wrapper(
                 .await
         );
 
-        StabbyResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
+        FfiResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
     }
     .into_ffi()
 }
@@ -463,7 +463,7 @@ impl TableProvider for ForeignTableProvider {
     ) -> Result<Arc<dyn ExecutionPlan>> {
         let session = FFI_SessionRef::new(session, None, self.0.logical_codec.clone());
 
-        let projections: StabbyOption<StabbyVec<usize>> = projection
+        let projections: FfiOption<StabbyVec<usize>> = projection
             .map(|p| p.iter().map(|v| v.to_owned()).collect())
             .into();
 
@@ -471,7 +471,7 @@ impl TableProvider for ForeignTableProvider {
         let filter_list = LogicalExprList {
             expr: serialize_exprs(filters, codec.as_ref())?,
         };
-        let filters_serialized = filter_list.encode_to_vec().into();
+        let filters_serialized = filter_list.encode_to_vec().into_iter().collect();
 
         let plan = unsafe {
             let maybe_plan = (self.0.scan)(
@@ -516,7 +516,7 @@ impl TableProvider for ForeignTableProvider {
             };
             let serialized_filters = expr_list.encode_to_vec();
 
-            let pushdowns = df_result!(pushdown_fn(&self.0, serialized_filters.into()))?;
+            let pushdowns = df_result!(pushdown_fn(&self.0, serialized_filters.into_iter().collect()))?;
 
             Ok(pushdowns.iter().map(|v| v.into()).collect())
         }

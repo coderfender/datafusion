@@ -24,12 +24,13 @@ use datafusion_physical_expr::EquivalenceProperties;
 use datafusion_physical_expr_common::sort_expr::PhysicalSortExpr;
 use datafusion_physical_plan::PlanProperties;
 use datafusion_physical_plan::execution_plan::{Boundedness, EmissionType};
-use stabby::option::Option as StabbyOption;
+
 use stabby::vec::Vec as StabbyVec;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::physical_expr::partitioning::FFI_Partitioning;
 use crate::physical_expr::sort::FFI_PhysicalSortExpr;
+use crate::util::FfiOption;
 
 /// A stable struct for sharing [`PlanProperties`] across FFI boundaries.
 #[repr(C)]
@@ -48,7 +49,7 @@ pub struct FFI_PlanProperties {
     pub output_ordering:
         unsafe extern "C" fn(
             plan: &Self,
-        ) -> StabbyOption<StabbyVec<FFI_PhysicalSortExpr>>,
+        ) -> FfiOption<StabbyVec<FFI_PhysicalSortExpr>>,
 
     /// Return the schema of the plan.
     pub schema: unsafe extern "C" fn(plan: &Self) -> WrappedSchema,
@@ -97,7 +98,7 @@ unsafe extern "C" fn boundedness_fn_wrapper(
 
 unsafe extern "C" fn output_ordering_fn_wrapper(
     properties: &FFI_PlanProperties,
-) -> StabbyOption<StabbyVec<FFI_PhysicalSortExpr>> {
+) -> FfiOption<StabbyVec<FFI_PhysicalSortExpr>> {
     let ordering: Option<StabbyVec<FFI_PhysicalSortExpr>> =
         properties.inner().output_ordering().map(|lex_ordering| {
             let vec_ordering: Vec<PhysicalSortExpr> = lex_ordering.clone().into();

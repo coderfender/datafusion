@@ -20,52 +20,61 @@ use std::sync::Arc;
 use arrow::datatypes::{DataType, Field};
 use arrow::ffi::FFI_ArrowSchema;
 use arrow_schema::FieldRef;
-use stabby::result::Result as StabbyResult;
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 
 use crate::arrow_wrappers::WrappedSchema;
+
+// Re-export for convenience
+pub use crate::ffi_option::{FfiOption, FfiResult};
 
 /// Convenience type for results passed through the FFI boundary. Since the
 /// `DataFusionError` enum is complex and little value is gained from creating
 /// a FFI safe variant of it, we convert errors to strings when passing results
 /// back. These are converted back and forth using the `df_result`, `rresult`,
 /// and `rresult_return` macros.
-pub type FFIResult<T> = StabbyResult<T, StabbyString>;
+pub type FFIResult<T> = FfiResult<T, StabbyString>;
 
-/// This macro is a helpful conversion utility to convert from a stabby::Result to a
+/// This macro is a helpful conversion utility to convert from an FFIResult to a
 /// DataFusion result.
 #[macro_export]
 macro_rules! df_result {
-    ( $x:expr ) => {{
-        let std_result: core::result::Result<_, _> = $x.into();
-        match std_result {
-            Ok(v) => Ok(v),
-            Err(err) => datafusion_common::ffi_err!("{err}"),
-        }
-    }};
-}
-
-/// This macro is a helpful conversion utility to convert from a DataFusion Result to a stabby::Result
-#[macro_export]
-macro_rules! rresult {
     ( $x:expr ) => {
-        match $x {
-            Ok(v) => stabby::result::Result::Ok(v),
-            Err(e) => stabby::result::Result::Err(e.to_string().into()),
+        match Into::<::std::result::Result<_, _>>::into($x) {
+            Ok(v) => Ok(v),
+            Err(err) => {
+                datafusion_common::ffi_err!("{err}")
+            }
         }
     };
 }
 
-/// This macro is a helpful conversion utility to convert from a DataFusion Result to a stabby::Result
-/// and to also call return when it is an error. Since you cannot use `?` on a StabbyResult, this is designed
+/// This macro is a helpful conversion utility to convert from a DataFusion Result to an FFIResult.
+#[macro_export]
+macro_rules! rresult {
+    ( $x:expr ) => {
+        match $x {
+            Ok(v) => $crate::ffi_option::FfiResult::Ok(v),
+            Err(e) => $crate::ffi_option::FfiResult::Err(
+                stabby::string::String::from(e.to_string().as_str()),
+            ),
+        }
+    };
+}
+
+/// This macro is a helpful conversion utility to convert from a DataFusion Result to an FFIResult
+/// and to also call return when it is an error. Since you cannot use `?` on an FFIResult, this is designed
 /// to mimic the pattern.
 #[macro_export]
 macro_rules! rresult_return {
     ( $x:expr ) => {
         match $x {
-            Ok(v) => v.into(),
-            Err(e) => return stabby::result::Result::Err(e.to_string().into()),
+            Ok(v) => v,
+            Err(e) => {
+                return $crate::ffi_option::FfiResult::Err(
+                    stabby::string::String::from(e.to_string().as_str()),
+                )
+            }
         }
     };
 }
@@ -127,11 +136,10 @@ pub(crate) mod tests {
     use datafusion::error::DataFusionError;
     use datafusion::prelude::SessionContext;
     use datafusion_execution::TaskContextProvider;
-    use stabby::result::Result as StabbyResult;
     use stabby::string::String as StabbyString;
-    use stabby::vec::Vec as StabbyVec;
 
     use crate::execution::FFI_TaskContextProvider;
+    use crate::ffi_option::FfiResult;
     use crate::util::FFIResult;
 
     pub(crate) fn test_session_and_ctx() -> (Arc<SessionContext>, FFI_TaskContextProvider)
@@ -143,8 +151,8 @@ pub(crate) mod tests {
         (ctx, task_ctx_provider)
     }
 
-    fn wrap_result(result: Result<String, DataFusionError>) -> FFIResult<StabbyString> {
-        StabbyResult::Ok(rresult_return!(result))
+    fn wrap_result(result: Result<String, DataFusionError>) -> FFIResult<String> {
+        FfiResult::Ok(rresult_return!(result))
     }
 
     #[test]
@@ -153,13 +161,13 @@ pub(crate) mod tests {
         const ERROR_VALUE: &str = "error_value";
 
         let ok_r_result: FFIResult<StabbyString> =
-            StabbyResult::Ok(VALID_VALUE.to_string().into());
+            FfiResult::Ok(StabbyString::from(VALID_VALUE));
         let err_r_result: FFIResult<StabbyString> =
-            StabbyResult::Err(ERROR_VALUE.to_string().into());
+            FfiResult::Err(StabbyString::from(ERROR_VALUE));
 
         let returned_ok_result = df_result!(ok_r_result);
         assert!(returned_ok_result.is_ok());
-        assert!(returned_ok_result.unwrap().to_string() == VALID_VALUE);
+        assert!(*returned_ok_result.unwrap() == *VALID_VALUE);
 
         let returned_err_result = df_result!(err_r_result);
         assert!(returned_err_result.is_err());
@@ -173,13 +181,16 @@ pub(crate) mod tests {
             datafusion_common::ffi_err!("{ERROR_VALUE}");
 
         let returned_ok_r_result = wrap_result(ok_result);
-        assert!(returned_ok_r_result == StabbyResult::Ok(VALID_VALUE.into()));
+        let std_result: Result<String, StabbyString> = returned_ok_r_result.into();
+        assert!(std_result == Ok(VALID_VALUE.into()));
 
         let returned_err_r_result = wrap_result(err_result);
-        assert!(returned_err_r_result.is_err());
+        let std_result: Result<String, StabbyString> = returned_err_r_result.into();
+        assert!(std_result.is_err());
         assert!(
-            returned_err_r_result
+            std_result
                 .unwrap_err()
+                .as_str()
                 .starts_with(format!("FFI error: {ERROR_VALUE}").as_str())
         );
     }

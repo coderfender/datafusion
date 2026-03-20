@@ -28,8 +28,7 @@ use datafusion_proto::logical_plan::{
 };
 use datafusion_proto::protobuf::LogicalPlanNode;
 use prost::Message;
-use stabby::result::Result as StabbyResult;
-use stabby::string::String as StabbyString;
+
 use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
@@ -37,6 +36,7 @@ use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::session::{FFI_SessionRef, ForeignSession};
 use crate::table_provider::{FFI_TableProvider, ForeignTableProvider};
+use crate::util::{FFIResult, FfiResult};
 use crate::{df_result, rresult_return};
 
 /// A stable struct for sharing [`TableProviderFactory`] across FFI boundaries.
@@ -63,7 +63,7 @@ pub struct FFI_TableProviderFactory {
         session: FFI_SessionRef,
         cmd_serialized: StabbyVec<u8>,
     ) -> FfiFuture<
-        StabbyResult<FFI_TableProvider, StabbyString>,
+        FFIResult<FFI_TableProvider>,
     >,
 
     logical_codec: FFI_LogicalExtensionCodec,
@@ -188,14 +188,14 @@ unsafe extern "C" fn create_fn_wrapper(
     factory: &FFI_TableProviderFactory,
     session: FFI_SessionRef,
     cmd_serialized: StabbyVec<u8>,
-) -> FfiFuture<StabbyResult<FFI_TableProvider, StabbyString>> {
+) -> FfiFuture<FFIResult<FFI_TableProvider>> {
     let factory = factory.clone();
 
     async move {
         let provider = rresult_return!(
             create_fn_wrapper_impl(factory, session, cmd_serialized).await
         );
-        StabbyResult::ROk(provider)
+        FfiResult::Ok(provider)
     }
     .into_ffi()
 }
@@ -281,7 +281,7 @@ impl ForeignTableProviderFactory {
         let mut buf: Vec<u8> = Vec::new();
         plan.try_encode(&mut buf)?;
 
-        Ok(buf.into())
+        Ok(buf.into_iter().collect())
     }
 }
 

@@ -43,7 +43,7 @@ use datafusion_proto::logical_plan::to_proto::serialize_expr;
 use datafusion_proto::protobuf::LogicalExprNode;
 use datafusion_session::Session;
 use prost::Message;
-use stabby::result::Result as StabbyResult;
+
 use stabby::str::Str as StabbyStr;
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
@@ -58,7 +58,7 @@ use crate::session::config::FFI_SessionConfig;
 use crate::udaf::FFI_AggregateUDF;
 use crate::udf::FFI_ScalarUDF;
 use crate::udwf::FFI_WindowUDF;
-use crate::util::FFIResult;
+use crate::util::{FFIResult, FfiResult};
 use crate::{df_result, rresult, rresult_return};
 
 pub mod config;
@@ -204,7 +204,7 @@ unsafe extern "C" fn create_physical_expr_fn_wrapper(
     let physical_expr =
         rresult_return!(session.create_physical_expr(logical_expr, &schema));
 
-    StabbyResult::Ok(physical_expr.into())
+    FfiResult::Ok(physical_expr.into())
 }
 
 unsafe extern "C" fn scalar_functions_fn_wrapper(
@@ -270,7 +270,7 @@ fn table_options_to_rhash(
         );
     }
 
-    options.into()
+    options.into_iter().collect()
 }
 
 unsafe extern "C" fn table_options_fn_wrapper(
@@ -414,7 +414,7 @@ impl TryFrom<&FFI_SessionRef> for ForeignSession {
                     let udf = <Arc<dyn ScalarUDFImpl>>::from(&kv_pair.1);
 
                     (
-                        kv_pair.0.into_string(),
+                        kv_pair.0.to_string(),
                         Arc::new(ScalarUDF::new_from_shared_impl(udf)),
                     )
                 })
@@ -425,7 +425,7 @@ impl TryFrom<&FFI_SessionRef> for ForeignSession {
                     let udaf = <Arc<dyn AggregateUDFImpl>>::from(&kv_pair.1);
 
                     (
-                        kv_pair.0.into_string(),
+                        kv_pair.0.to_string(),
                         Arc::new(AggregateUDF::new_from_shared_impl(udaf)),
                     )
                 })
@@ -436,7 +436,7 @@ impl TryFrom<&FFI_SessionRef> for ForeignSession {
                     let udwf = <Arc<dyn WindowUDFImpl>>::from(&kv_pair.1);
 
                     (
-                        kv_pair.0.into_string(),
+                        kv_pair.0.to_string(),
                         Arc::new(WindowUDF::new_from_shared_impl(udwf)),
                     )
                 })
@@ -467,7 +467,7 @@ fn table_options_from_rhashmap(
 ) -> TableOptions {
     let mut options: HashMap<String, String> = options
         .into_iter()
-        .map(|kv_pair| (kv_pair.0.into_string(), kv_pair.1.into_string()))
+        .map(|kv_pair| (kv_pair.0.to_string(), kv_pair.1.to_string()))
         .collect();
     let current_format = options.remove("datafusion_ffi.table_current_format");
 
@@ -577,7 +577,7 @@ impl Session for ForeignSession {
 
             let physical_expr = df_result!((self.session.create_physical_expr)(
                 &self.session,
-                logical_expr.into(),
+                logical_expr.into_iter().collect(),
                 schema
             ))?;
 

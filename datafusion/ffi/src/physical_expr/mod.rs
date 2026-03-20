@@ -35,8 +35,8 @@ use datafusion_expr::sort_properties::ExprProperties;
 use datafusion_expr::statistics::Distribution;
 use datafusion_physical_expr::PhysicalExpr;
 use datafusion_physical_expr_common::physical_expr::fmt_sql;
-use stabby::option::Option as StabbyOption;
-use stabby::result::Result as StabbyResult;
+
+
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 
@@ -48,7 +48,7 @@ use crate::expr::interval::FFI_Interval;
 use crate::record_batch_stream::{
     record_batch_to_wrapped_array, wrapped_array_to_record_batch,
 };
-use crate::util::FFIResult;
+use crate::util::{FFIResult, FfiOption, FfiResult};
 use crate::{df_result, rresult, rresult_return};
 
 #[repr(C)]
@@ -93,7 +93,7 @@ pub struct FFI_PhysicalExpr {
             &Self,
             interval: FFI_Interval,
             children: StabbyVec<FFI_Interval>,
-        ) -> FFIResult<StabbyOption<StabbyVec<FFI_Interval>>>,
+        ) -> FFIResult<FfiOption<StabbyVec<FFI_Interval>>>,
 
     pub evaluate_statistics: unsafe extern "C" fn(
         &Self,
@@ -105,7 +105,7 @@ pub struct FFI_PhysicalExpr {
         parent: FFI_Distribution,
         children: StabbyVec<FFI_Distribution>,
     ) -> FFIResult<
-        StabbyOption<StabbyVec<FFI_Distribution>>,
+        FfiOption<StabbyVec<FFI_Distribution>>,
     >,
 
     pub get_properties: unsafe extern "C" fn(
@@ -116,7 +116,7 @@ pub struct FFI_PhysicalExpr {
     pub fmt_sql: unsafe extern "C" fn(&Self) -> FFIResult<StabbyString>,
 
     pub snapshot:
-        unsafe extern "C" fn(&Self) -> FFIResult<StabbyOption<FFI_PhysicalExpr>>,
+        unsafe extern "C" fn(&Self) -> FFIResult<FfiOption<FFI_PhysicalExpr>>,
 
     pub snapshot_generation: unsafe extern "C" fn(&Self) -> u64,
 
@@ -273,7 +273,7 @@ unsafe extern "C" fn propagate_constraints_fn_wrapper(
     expr: &FFI_PhysicalExpr,
     interval: FFI_Interval,
     children: StabbyVec<FFI_Interval>,
-) -> FFIResult<StabbyOption<StabbyVec<FFI_Interval>>> {
+) -> FFIResult<FfiOption<StabbyVec<FFI_Interval>>> {
     let expr = expr.inner();
     let interval = rresult_return!(Interval::try_from(interval));
     let children = rresult_return!(
@@ -296,7 +296,7 @@ unsafe extern "C" fn propagate_constraints_fn_wrapper(
             .transpose()
     );
 
-    StabbyResult::Ok(result.into())
+    FfiResult::Ok(result.into())
 }
 
 unsafe extern "C" fn evaluate_statistics_fn_wrapper(
@@ -321,7 +321,7 @@ unsafe extern "C" fn propagate_statistics_fn_wrapper(
     expr: &FFI_PhysicalExpr,
     parent: FFI_Distribution,
     children: StabbyVec<FFI_Distribution>,
-) -> FFIResult<StabbyOption<StabbyVec<FFI_Distribution>>> {
+) -> FFIResult<FfiOption<StabbyVec<FFI_Distribution>>> {
     let expr = expr.inner();
     let parent = rresult_return!(Distribution::try_from(parent));
     let children = rresult_return!(
@@ -342,7 +342,7 @@ unsafe extern "C" fn propagate_statistics_fn_wrapper(
             .transpose()
     );
 
-    StabbyResult::Ok(result.into())
+    FfiResult::Ok(result.into())
 }
 
 unsafe extern "C" fn get_properties_fn_wrapper(
@@ -367,12 +367,12 @@ unsafe extern "C" fn fmt_sql_fn_wrapper(
 ) -> FFIResult<StabbyString> {
     let expr = expr.inner();
     let result = fmt_sql(expr.as_ref()).to_string();
-    StabbyResult::Ok(result.into())
+    FfiResult::Ok(result.into())
 }
 
 unsafe extern "C" fn snapshot_fn_wrapper(
     expr: &FFI_PhysicalExpr,
-) -> FFIResult<StabbyOption<FFI_PhysicalExpr>> {
+) -> FFIResult<FfiOption<FFI_PhysicalExpr>> {
     let expr = expr.inner();
     rresult!(
         expr.snapshot()
@@ -691,8 +691,8 @@ impl PhysicalExpr for ForeignPhysicalExpr {
     fn fmt_sql(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         unsafe {
             match (self.expr.fmt_sql)(&self.expr) {
-                StabbyResult::Ok(sql) => write!(f, "{sql}"),
-                StabbyResult::Err(_) => Err(std::fmt::Error),
+                FfiResult::Ok(sql) => write!(f, "{sql}"),
+                FfiResult::Err(_) => Err(std::fmt::Error),
             }
         }
     }

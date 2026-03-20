@@ -20,18 +20,18 @@ use datafusion_common::scalar::ScalarValue;
 use datafusion_common::{DataFusionError, ffi_datafusion_err};
 use datafusion_expr::ReturnFieldArgs;
 use prost::Message;
-use stabby::option::Option as StabbyOption;
+
 use stabby::vec::Vec as StabbyVec;
 
 use crate::arrow_wrappers::WrappedSchema;
-use crate::util::{rvec_wrapped_to_vec_fieldref, vec_fieldref_to_rvec_wrapped};
+use crate::util::{rvec_wrapped_to_vec_fieldref, vec_fieldref_to_rvec_wrapped, FfiOption};
 
 /// A stable struct for sharing a [`ReturnFieldArgs`] across FFI boundaries.
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_ReturnFieldArgs {
     arg_fields: StabbyVec<WrappedSchema>,
-    scalar_arguments: StabbyVec<StabbyOption<StabbyVec<u8>>>,
+    scalar_arguments: StabbyVec<FfiOption<StabbyVec<u8>>>,
 }
 
 impl TryFrom<ReturnFieldArgs<'_>> for FFI_ReturnFieldArgs {
@@ -48,7 +48,7 @@ impl TryFrom<ReturnFieldArgs<'_>> for FFI_ReturnFieldArgs {
                         let proto_value: datafusion_proto::protobuf::ScalarValue =
                             arg.try_into()?;
                         let proto_bytes: StabbyVec<u8> =
-                            proto_value.encode_to_vec().into();
+                            proto_value.encode_to_vec().into_iter().collect();
                         Ok(proto_bytes)
                     })
                     .transpose()
@@ -56,7 +56,7 @@ impl TryFrom<ReturnFieldArgs<'_>> for FFI_ReturnFieldArgs {
             .collect();
         let scalar_arguments = scalar_arguments?
             .into_iter()
-            .map(StabbyOption::from)
+            .map(FfiOption::from)
             .collect();
 
         Ok(Self {
@@ -95,7 +95,7 @@ impl TryFrom<&FFI_ReturnFieldArgs> for ForeignReturnFieldArgsOwned {
                     let scalar_value: ScalarValue = (&proto_value).try_into()?;
                     Ok(scalar_value)
                 });
-                Option::from(maybe_arg).transpose()
+                maybe_arg.transpose()
             })
             .collect();
         let scalar_arguments = scalar_arguments?.into_iter().collect();

@@ -33,8 +33,8 @@ use partition_evaluator::FFI_PartitionEvaluator;
 use partition_evaluator_args::{
     FFI_PartitionEvaluatorArgs, ForeignPartitionEvaluatorArgs,
 };
-use stabby::option::Option as StabbyOption;
-use stabby::result::Result as StabbyResult;
+
+
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 
@@ -44,8 +44,9 @@ mod range;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
-    FFIResult, rvec_wrapped_to_vec_datatype, rvec_wrapped_to_vec_fieldref,
-    vec_datatype_to_rvec_wrapped, vec_fieldref_to_rvec_wrapped,
+    FFIResult, FfiOption, FfiResult, rvec_wrapped_to_vec_datatype,
+    rvec_wrapped_to_vec_fieldref, vec_datatype_to_rvec_wrapped,
+    vec_fieldref_to_rvec_wrapped,
 };
 use crate::volatility::FFI_Volatility;
 use crate::{df_result, rresult, rresult_return};
@@ -84,7 +85,7 @@ pub struct FFI_WindowUDF {
         arg_types: StabbyVec<WrappedSchema>,
     ) -> FFIResult<StabbyVec<WrappedSchema>>,
 
-    pub sort_options: StabbyOption<FFI_SortOptions>,
+    pub sort_options: FfiOption<FFI_SortOptions>,
 
     /// Used to create a clone on the provider of the udf. This should
     /// only need to be called by the receiver of the udf.
@@ -131,7 +132,7 @@ unsafe extern "C" fn partition_evaluator_fn_wrapper(
         let evaluator =
             rresult_return!(inner.partition_evaluator_factory((&args).into()));
 
-        StabbyResult::Ok(evaluator.into())
+        FfiResult::Ok(evaluator.into())
     }
 }
 
@@ -152,7 +153,7 @@ unsafe extern "C" fn field_fn_wrapper(
 
         let schema = Arc::new(Schema::new(vec![field]));
 
-        StabbyResult::Ok(WrappedSchema::from(schema))
+        FfiResult::Ok(WrappedSchema::from(schema))
     }
 }
 
@@ -360,7 +361,7 @@ impl WindowUDFImpl for ForeignWindowUDF {
     }
 
     fn sort_options(&self) -> Option<SortOptions> {
-        let options: Option<&FFI_SortOptions> = self.udf.sort_options.as_ref().into();
+        let options: Option<&FFI_SortOptions> = self.udf.sort_options.as_ref();
         options.map(|s| s.into())
     }
 

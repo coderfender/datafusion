@@ -26,8 +26,6 @@ use datafusion_common::error::{DataFusionError, Result};
 use datafusion_proto::logical_plan::{
     DefaultLogicalExtensionCodec, LogicalExtensionCodec,
 };
-use stabby::option::Option as StabbyOption;
-use stabby::result::Result as StabbyResult;
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
@@ -35,14 +33,14 @@ use tokio::runtime::Handle;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::table_provider::{FFI_TableProvider, ForeignTableProvider};
-use crate::util::FFIResult;
+use crate::util::{FFIResult, FfiOption, FfiResult};
 use crate::{df_result, rresult_return};
 
 /// A stable struct for sharing [`SchemaProvider`] across FFI boundaries.
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_SchemaProvider {
-    pub owner_name: StabbyOption<StabbyString>,
+    pub owner_name: FfiOption<StabbyString>,
 
     pub table_names: unsafe extern "C" fn(provider: &Self) -> StabbyVec<StabbyString>,
 
@@ -50,7 +48,7 @@ pub struct FFI_SchemaProvider {
         provider: &Self,
         name: StabbyString,
     ) -> FfiFuture<
-        FFIResult<StabbyOption<FFI_TableProvider>>,
+        FFIResult<FfiOption<FFI_TableProvider>>,
     >,
 
     pub register_table:
@@ -58,13 +56,13 @@ pub struct FFI_SchemaProvider {
             provider: &Self,
             name: StabbyString,
             table: FFI_TableProvider,
-        ) -> FFIResult<StabbyOption<FFI_TableProvider>>,
+        ) -> FFIResult<FfiOption<FFI_TableProvider>>,
 
     pub deregister_table:
         unsafe extern "C" fn(
             provider: &Self,
             name: StabbyString,
-        ) -> FFIResult<StabbyOption<FFI_TableProvider>>,
+        ) -> FFIResult<FfiOption<FFI_TableProvider>>,
 
     pub table_exist: unsafe extern "C" fn(provider: &Self, name: StabbyString) -> bool,
 
@@ -128,7 +126,7 @@ unsafe extern "C" fn table_names_fn_wrapper(
 unsafe extern "C" fn table_fn_wrapper(
     provider: &FFI_SchemaProvider,
     name: StabbyString,
-) -> FfiFuture<FFIResult<StabbyOption<FFI_TableProvider>>> {
+) -> FfiFuture<FFIResult<FfiOption<FFI_TableProvider>>> {
     unsafe {
         let runtime = provider.runtime();
         let logical_codec = provider.logical_codec.clone();
@@ -141,7 +139,7 @@ unsafe extern "C" fn table_fn_wrapper(
                 })
                 .into();
 
-            StabbyResult::Ok(table)
+            FfiResult::Ok(table)
         }
         .into_ffi()
     }
@@ -151,7 +149,7 @@ unsafe extern "C" fn register_table_fn_wrapper(
     provider: &FFI_SchemaProvider,
     name: StabbyString,
     table: FFI_TableProvider,
-) -> FFIResult<StabbyOption<FFI_TableProvider>> {
+) -> FFIResult<FfiOption<FFI_TableProvider>> {
     unsafe {
         let runtime = provider.runtime();
         let logical_codec = provider.logical_codec.clone();
@@ -164,14 +162,14 @@ unsafe extern "C" fn register_table_fn_wrapper(
                 FFI_TableProvider::new_with_ffi_codec(t, true, runtime, logical_codec)
             });
 
-        StabbyResult::Ok(returned_table.into())
+        FfiResult::Ok(returned_table.into())
     }
 }
 
 unsafe extern "C" fn deregister_table_fn_wrapper(
     provider: &FFI_SchemaProvider,
     name: StabbyString,
-) -> FFIResult<StabbyOption<FFI_TableProvider>> {
+) -> FFIResult<FfiOption<FFI_TableProvider>> {
     unsafe {
         let runtime = provider.runtime();
         let logical_codec = provider.logical_codec.clone();
@@ -182,7 +180,7 @@ unsafe extern "C" fn deregister_table_fn_wrapper(
                 FFI_TableProvider::new_with_ffi_codec(t, true, runtime, logical_codec)
             });
 
-        StabbyResult::Ok(returned_table.into())
+        FfiResult::Ok(returned_table.into())
     }
 }
 
@@ -316,7 +314,7 @@ impl SchemaProvider for ForeignSchemaProvider {
     }
 
     fn owner_name(&self) -> Option<&str> {
-        let name: Option<&StabbyString> = self.0.owner_name.as_ref().into();
+        let name: Option<&StabbyString> = self.0.owner_name.as_ref();
         name.map(|s| s.as_str())
     }
 
