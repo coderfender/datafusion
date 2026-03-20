@@ -65,6 +65,7 @@ datafusion-proto = { workspace = true }
 datafusion-proto-common = { workspace = true }
 datafusion-session = { workspace = true }
 futures = { workspace = true }
+libloading = "0.8"
 log = { workspace = true }
 prost = { workspace = true }
 semver = "1.0.27"
@@ -78,7 +79,6 @@ datafusion-functions-aggregate = { workspace = true }
 datafusion-functions-aggregate-common = { workspace = true }
 datafusion-functions-window = { workspace = true }
 doc-comment = { workspace = true }
-libloading = "0.8"
 
 [features]
 integration-tests = [
