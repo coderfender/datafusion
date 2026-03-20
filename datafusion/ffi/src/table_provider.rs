@@ -36,7 +36,6 @@ use datafusion_proto::logical_plan::{
 use datafusion_proto::protobuf::LogicalExprList;
 use prost::Message;
 
-
 use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
@@ -46,7 +45,7 @@ use crate::arrow_wrappers::WrappedSchema;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::session::{FFI_SessionRef, ForeignSession};
-use crate::table_source::{FfiTableProviderFilterPushDown, FFI_TableType};
+use crate::table_source::{FFI_TableType, FfiTableProviderFilterPushDown};
 use crate::util::{FFIResult, FfiOption, FfiResult};
 use crate::{df_result, rresult_return};
 
@@ -516,7 +515,10 @@ impl TableProvider for ForeignTableProvider {
             };
             let serialized_filters = expr_list.encode_to_vec();
 
-            let pushdowns = df_result!(pushdown_fn(&self.0, serialized_filters.into_iter().collect()))?;
+            let pushdowns = df_result!(pushdown_fn(
+                &self.0,
+                serialized_filters.into_iter().collect()
+            ))?;
 
             Ok(pushdowns.iter().map(|v| v.into()).collect())
         }

@@ -34,7 +34,6 @@ use datafusion_proto_common::from_proto::parse_proto_fields_to_fields;
 use groups_accumulator::FFI_GroupsAccumulator;
 use prost::{DecodeError, Message};
 
-
 use stabby::str::Str as StabbyStr;
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
@@ -44,8 +43,9 @@ use std::sync::Arc;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
-    FFIResult, FfiOption, FfiResult, rvec_wrapped_to_vec_datatype, rvec_wrapped_to_vec_fieldref,
-    vec_datatype_to_rvec_wrapped, vec_fieldref_to_rvec_wrapped,
+    FFIResult, FfiOption, FfiResult, rvec_wrapped_to_vec_datatype,
+    rvec_wrapped_to_vec_fieldref, vec_datatype_to_rvec_wrapped,
+    vec_fieldref_to_rvec_wrapped,
 };
 use crate::volatility::FfiVolatility;
 use crate::{df_result, rresult, rresult_return};

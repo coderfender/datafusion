@@ -24,7 +24,9 @@ use prost::Message;
 use stabby::vec::Vec as StabbyVec;
 
 use crate::arrow_wrappers::WrappedSchema;
-use crate::util::{rvec_wrapped_to_vec_fieldref, vec_fieldref_to_rvec_wrapped, FfiOption};
+use crate::util::{
+    FfiOption, rvec_wrapped_to_vec_fieldref, vec_fieldref_to_rvec_wrapped,
+};
 
 /// A stable struct for sharing a [`ReturnFieldArgs`] across FFI boundaries.
 #[repr(C)]
@@ -54,10 +56,8 @@ impl TryFrom<ReturnFieldArgs<'_>> for FFI_ReturnFieldArgs {
                     .transpose()
             })
             .collect();
-        let scalar_arguments = scalar_arguments?
-            .into_iter()
-            .map(FfiOption::from)
-            .collect();
+        let scalar_arguments =
+            scalar_arguments?.into_iter().map(FfiOption::from).collect();
 
         Ok(Self {
             arg_fields,

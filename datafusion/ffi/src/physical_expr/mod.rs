@@ -36,7 +36,6 @@ use datafusion_expr::statistics::Distribution;
 use datafusion_physical_expr::PhysicalExpr;
 use datafusion_physical_expr_common::physical_expr::fmt_sql;
 
-
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 
@@ -115,8 +114,7 @@ pub struct FFI_PhysicalExpr {
 
     pub fmt_sql: unsafe extern "C" fn(&Self) -> FFIResult<StabbyString>,
 
-    pub snapshot:
-        unsafe extern "C" fn(&Self) -> FFIResult<FfiOption<FFI_PhysicalExpr>>,
+    pub snapshot: unsafe extern "C" fn(&Self) -> FFIResult<FfiOption<FFI_PhysicalExpr>>,
 
     pub snapshot_generation: unsafe extern "C" fn(&Self) -> u64,
 

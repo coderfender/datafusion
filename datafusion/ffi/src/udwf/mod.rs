@@ -34,7 +34,6 @@ use partition_evaluator_args::{
     FFI_PartitionEvaluatorArgs, ForeignPartitionEvaluatorArgs,
 };
 
-
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 

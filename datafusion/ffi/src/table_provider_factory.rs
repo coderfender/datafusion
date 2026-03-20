@@ -62,9 +62,7 @@ pub struct FFI_TableProviderFactory {
         factory: &Self,
         session: FFI_SessionRef,
         cmd_serialized: StabbyVec<u8>,
-    ) -> FfiFuture<
-        FFIResult<FFI_TableProvider>,
-    >,
+    ) -> FfiFuture<FFIResult<FFI_TableProvider>>,
 
     logical_codec: FFI_LogicalExtensionCodec,
 

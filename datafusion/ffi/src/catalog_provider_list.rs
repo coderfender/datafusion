@@ -47,10 +47,8 @@ pub struct FFI_CatalogProviderList {
     pub catalog_names: unsafe extern "C" fn(&Self) -> StabbyVec<StabbyString>,
 
     /// Access a catalog
-    pub catalog: unsafe extern "C" fn(
-        &Self,
-        name: StabbyString,
-    ) -> FfiOption<FFI_CatalogProvider>,
+    pub catalog:
+        unsafe extern "C" fn(&Self, name: StabbyString) -> FfiOption<FFI_CatalogProvider>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 

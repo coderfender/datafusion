@@ -55,9 +55,9 @@ macro_rules! rresult {
     ( $x:expr ) => {
         match $x {
             Ok(v) => $crate::ffi_option::FfiResult::Ok(v),
-            Err(e) => $crate::ffi_option::FfiResult::Err(
-                stabby::string::String::from(e.to_string().as_str()),
-            ),
+            Err(e) => $crate::ffi_option::FfiResult::Err(stabby::string::String::from(
+                e.to_string().as_str(),
+            )),
         }
     };
 }
@@ -71,9 +71,9 @@ macro_rules! rresult_return {
         match $x {
             Ok(v) => v,
             Err(e) => {
-                return $crate::ffi_option::FfiResult::Err(
-                    stabby::string::String::from(e.to_string().as_str()),
-                )
+                return $crate::ffi_option::FfiResult::Err(stabby::string::String::from(
+                    e.to_string().as_str(),
+                ))
             }
         }
     };
