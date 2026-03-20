@@ -27,7 +27,7 @@ use datafusion_expr::PartitionEvaluator;
 use datafusion_expr::window_state::WindowAggState;
 use prost::Message;
 
-use stabby::vec::Vec as StabbyVec;
+use stabby::vec::Vec as SVec;
 
 use super::range::FFI_Range;
 use crate::arrow_wrappers::WrappedArray;
@@ -42,20 +42,20 @@ use crate::{df_result, rresult, rresult_return};
 pub struct FFI_PartitionEvaluator {
     pub evaluate_all: unsafe extern "C" fn(
         evaluator: &mut Self,
-        values: StabbyVec<WrappedArray>,
+        values: SVec<WrappedArray>,
         num_rows: usize,
     ) -> FFIResult<WrappedArray>,
 
     pub evaluate: unsafe extern "C" fn(
         evaluator: &mut Self,
-        values: StabbyVec<WrappedArray>,
+        values: SVec<WrappedArray>,
         range: FFI_Range,
-    ) -> FFIResult<StabbyVec<u8>>,
+    ) -> FFIResult<SVec<u8>>,
 
     pub evaluate_all_with_rank: unsafe extern "C" fn(
         evaluator: &Self,
         num_rows: usize,
-        ranks_in_partition: StabbyVec<FFI_Range>,
+        ranks_in_partition: SVec<FFI_Range>,
     ) -> FFIResult<WrappedArray>,
 
     pub get_range: unsafe extern "C" fn(
@@ -108,7 +108,7 @@ impl FFI_PartitionEvaluator {
 
 unsafe extern "C" fn evaluate_all_fn_wrapper(
     evaluator: &mut FFI_PartitionEvaluator,
-    values: StabbyVec<WrappedArray>,
+    values: SVec<WrappedArray>,
     num_rows: usize,
 ) -> FFIResult<WrappedArray> {
     unsafe {
@@ -133,9 +133,9 @@ unsafe extern "C" fn evaluate_all_fn_wrapper(
 
 unsafe extern "C" fn evaluate_fn_wrapper(
     evaluator: &mut FFI_PartitionEvaluator,
-    values: StabbyVec<WrappedArray>,
+    values: SVec<WrappedArray>,
     range: FFI_Range,
-) -> FFIResult<StabbyVec<u8>> {
+) -> FFIResult<SVec<u8>> {
     unsafe {
         let inner = evaluator.inner_mut();
 
@@ -159,7 +159,7 @@ unsafe extern "C" fn evaluate_fn_wrapper(
 unsafe extern "C" fn evaluate_all_with_rank_fn_wrapper(
     evaluator: &FFI_PartitionEvaluator,
     num_rows: usize,
-    ranks_in_partition: StabbyVec<FFI_Range>,
+    ranks_in_partition: SVec<FFI_Range>,
 ) -> FFIResult<WrappedArray> {
     unsafe {
         let inner = evaluator.inner();
@@ -292,7 +292,7 @@ impl PartitionEvaluator for ForeignPartitionEvaluator {
             let values = values
                 .iter()
                 .map(WrappedArray::try_from)
-                .collect::<std::result::Result<StabbyVec<_>, ArrowError>>()?;
+                .collect::<std::result::Result<SVec<_>, ArrowError>>()?;
             (self.evaluator.evaluate_all)(&mut self.evaluator, values, num_rows)
         };
 
@@ -310,7 +310,7 @@ impl PartitionEvaluator for ForeignPartitionEvaluator {
             let values = values
                 .iter()
                 .map(WrappedArray::try_from)
-                .collect::<std::result::Result<StabbyVec<_>, ArrowError>>()?;
+                .collect::<std::result::Result<SVec<_>, ArrowError>>()?;
 
             let scalar_bytes = df_result!((self.evaluator.evaluate)(
                 &mut self.evaluator,

@@ -29,7 +29,7 @@ use datafusion_proto::logical_plan::{
 use datafusion_proto::protobuf::LogicalPlanNode;
 use prost::Message;
 
-use stabby::vec::Vec as StabbyVec;
+use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContextProvider;
@@ -61,7 +61,7 @@ pub struct FFI_TableProviderFactory {
     create: unsafe extern "C" fn(
         factory: &Self,
         session: FFI_SessionRef,
-        cmd_serialized: StabbyVec<u8>,
+        cmd_serialized: SVec<u8>,
     ) -> FfiFuture<FFIResult<FFI_TableProvider>>,
 
     logical_codec: FFI_LogicalExtensionCodec,
@@ -143,7 +143,7 @@ impl FFI_TableProviderFactory {
 
     fn deserialize_cmd(
         &self,
-        cmd_serialized: &StabbyVec<u8>,
+        cmd_serialized: &SVec<u8>,
     ) -> Result<CreateExternalTable, DataFusionError> {
         let task_ctx: Arc<TaskContext> =
             (&self.logical_codec.task_ctx_provider).try_into()?;
@@ -185,7 +185,7 @@ impl From<&FFI_TableProviderFactory> for Arc<dyn TableProviderFactory> {
 unsafe extern "C" fn create_fn_wrapper(
     factory: &FFI_TableProviderFactory,
     session: FFI_SessionRef,
-    cmd_serialized: StabbyVec<u8>,
+    cmd_serialized: SVec<u8>,
 ) -> FfiFuture<FFIResult<FFI_TableProvider>> {
     let factory = factory.clone();
 
@@ -201,7 +201,7 @@ unsafe extern "C" fn create_fn_wrapper(
 async fn create_fn_wrapper_impl(
     factory: FFI_TableProviderFactory,
     session: FFI_SessionRef,
-    cmd_serialized: StabbyVec<u8>,
+    cmd_serialized: SVec<u8>,
 ) -> Result<FFI_TableProvider, DataFusionError> {
     let runtime = factory.runtime().clone();
     let ffi_logical_codec = factory.logical_codec.clone();
@@ -268,7 +268,7 @@ impl ForeignTableProviderFactory {
     fn serialize_cmd(
         &self,
         cmd: CreateExternalTable,
-    ) -> Result<StabbyVec<u8>, DataFusionError> {
+    ) -> Result<SVec<u8>, DataFusionError> {
         let logical_codec: Arc<dyn LogicalExtensionCodec> =
             (&self.0.logical_codec).into();
 

@@ -31,7 +31,7 @@ use datafusion_proto::logical_plan::{
 use datafusion_proto::protobuf::LogicalExprList;
 use prost::Message;
 
-use stabby::vec::Vec as StabbyVec;
+use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContextProvider;
@@ -48,7 +48,7 @@ pub struct FFI_TableFunction {
     /// The arguments are Expr passed as protobuf encoded bytes.
     pub call: unsafe extern "C" fn(
         udtf: &Self,
-        args: StabbyVec<u8>,
+        args: SVec<u8>,
     ) -> FFIResult<FFI_TableProvider>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
@@ -92,7 +92,7 @@ impl FFI_TableFunction {
 
 unsafe extern "C" fn call_fn_wrapper(
     udtf: &FFI_TableFunction,
-    args: StabbyVec<u8>,
+    args: SVec<u8>,
 ) -> FFIResult<FFI_TableProvider> {
     let runtime = udtf.runtime();
     let udtf_inner = udtf.inner();

@@ -23,8 +23,8 @@ use datafusion_catalog::{CatalogProvider, CatalogProviderList};
 use datafusion_proto::logical_plan::{
     DefaultLogicalExtensionCodec, LogicalExtensionCodec,
 };
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
 
 use crate::catalog_provider::{FFI_CatalogProvider, ForeignCatalogProvider};
@@ -39,16 +39,16 @@ pub struct FFI_CatalogProviderList {
     /// Register a catalog
     pub register_catalog: unsafe extern "C" fn(
         &Self,
-        name: StabbyString,
+        name: SString,
         catalog: &FFI_CatalogProvider,
     ) -> FfiOption<FFI_CatalogProvider>,
 
     /// List of existing catalogs
-    pub catalog_names: unsafe extern "C" fn(&Self) -> StabbyVec<StabbyString>,
+    pub catalog_names: unsafe extern "C" fn(&Self) -> SVec<SString>,
 
     /// Access a catalog
     pub catalog:
-        unsafe extern "C" fn(&Self, name: StabbyString) -> FfiOption<FFI_CatalogProvider>,
+        unsafe extern "C" fn(&Self, name: SString) -> FfiOption<FFI_CatalogProvider>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 
@@ -98,7 +98,7 @@ impl FFI_CatalogProviderList {
 
 unsafe extern "C" fn catalog_names_fn_wrapper(
     provider: &FFI_CatalogProviderList,
-) -> StabbyVec<StabbyString> {
+) -> SVec<SString> {
     unsafe {
         let names = provider.inner().catalog_names();
         names.into_iter().map(|s| s.into()).collect()
@@ -107,7 +107,7 @@ unsafe extern "C" fn catalog_names_fn_wrapper(
 
 unsafe extern "C" fn register_catalog_fn_wrapper(
     provider: &FFI_CatalogProviderList,
-    name: StabbyString,
+    name: SString,
     catalog: &FFI_CatalogProvider,
 ) -> FfiOption<FFI_CatalogProvider> {
     unsafe {
@@ -130,7 +130,7 @@ unsafe extern "C" fn register_catalog_fn_wrapper(
 
 unsafe extern "C" fn catalog_fn_wrapper(
     provider: &FFI_CatalogProviderList,
-    name: StabbyString,
+    name: SString,
 ) -> FfiOption<FFI_CatalogProvider> {
     unsafe {
         let runtime = provider.runtime();

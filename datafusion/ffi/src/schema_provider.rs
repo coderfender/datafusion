@@ -26,8 +26,8 @@ use datafusion_common::error::{DataFusionError, Result};
 use datafusion_proto::logical_plan::{
     DefaultLogicalExtensionCodec, LogicalExtensionCodec,
 };
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContextProvider;
@@ -40,30 +40,30 @@ use crate::{df_result, rresult_return};
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_SchemaProvider {
-    pub owner_name: FfiOption<StabbyString>,
+    pub owner_name: FfiOption<SString>,
 
-    pub table_names: unsafe extern "C" fn(provider: &Self) -> StabbyVec<StabbyString>,
+    pub table_names: unsafe extern "C" fn(provider: &Self) -> SVec<SString>,
 
     pub table: unsafe extern "C" fn(
         provider: &Self,
-        name: StabbyString,
+        name: SString,
     )
         -> FfiFuture<FFIResult<FfiOption<FFI_TableProvider>>>,
 
     pub register_table: unsafe extern "C" fn(
         provider: &Self,
-        name: StabbyString,
+        name: SString,
         table: FFI_TableProvider,
     )
         -> FFIResult<FfiOption<FFI_TableProvider>>,
 
     pub deregister_table: unsafe extern "C" fn(
         provider: &Self,
-        name: StabbyString,
+        name: SString,
     )
         -> FFIResult<FfiOption<FFI_TableProvider>>,
 
-    pub table_exist: unsafe extern "C" fn(provider: &Self, name: StabbyString) -> bool,
+    pub table_exist: unsafe extern "C" fn(provider: &Self, name: SString) -> bool,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 
@@ -113,7 +113,7 @@ impl FFI_SchemaProvider {
 
 unsafe extern "C" fn table_names_fn_wrapper(
     provider: &FFI_SchemaProvider,
-) -> StabbyVec<StabbyString> {
+) -> SVec<SString> {
     unsafe {
         let provider = provider.inner();
 
@@ -124,7 +124,7 @@ unsafe extern "C" fn table_names_fn_wrapper(
 
 unsafe extern "C" fn table_fn_wrapper(
     provider: &FFI_SchemaProvider,
-    name: StabbyString,
+    name: SString,
 ) -> FfiFuture<FFIResult<FfiOption<FFI_TableProvider>>> {
     unsafe {
         let runtime = provider.runtime();
@@ -146,7 +146,7 @@ unsafe extern "C" fn table_fn_wrapper(
 
 unsafe extern "C" fn register_table_fn_wrapper(
     provider: &FFI_SchemaProvider,
-    name: StabbyString,
+    name: SString,
     table: FFI_TableProvider,
 ) -> FFIResult<FfiOption<FFI_TableProvider>> {
     unsafe {
@@ -167,7 +167,7 @@ unsafe extern "C" fn register_table_fn_wrapper(
 
 unsafe extern "C" fn deregister_table_fn_wrapper(
     provider: &FFI_SchemaProvider,
-    name: StabbyString,
+    name: SString,
 ) -> FFIResult<FfiOption<FFI_TableProvider>> {
     unsafe {
         let runtime = provider.runtime();
@@ -185,7 +185,7 @@ unsafe extern "C" fn deregister_table_fn_wrapper(
 
 unsafe extern "C" fn table_exist_fn_wrapper(
     provider: &FFI_SchemaProvider,
-    name: StabbyString,
+    name: SString,
 ) -> bool {
     unsafe { provider.inner().table_exist(name.as_str()) }
 }
@@ -318,7 +318,7 @@ impl SchemaProvider for ForeignSchemaProvider {
     }
 
     fn owner_name(&self) -> Option<&str> {
-        let name: Option<&StabbyString> = self.0.owner_name.as_ref();
+        let name: Option<&SString> = self.0.owner_name.as_ref();
         name.map(|s| s.as_str())
     }
 

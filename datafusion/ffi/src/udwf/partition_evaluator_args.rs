@@ -23,7 +23,7 @@ use arrow_schema::FieldRef;
 use datafusion_common::{DataFusionError, Result};
 use datafusion_expr::function::PartitionEvaluatorArgs;
 use datafusion_physical_plan::PhysicalExpr;
-use stabby::vec::Vec as StabbyVec;
+use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::physical_expr::FFI_PhysicalExpr;
@@ -35,8 +35,8 @@ use crate::util::rvec_wrapped_to_vec_fieldref;
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_PartitionEvaluatorArgs {
-    input_exprs: StabbyVec<FFI_PhysicalExpr>,
-    input_fields: StabbyVec<WrappedSchema>,
+    input_exprs: SVec<FFI_PhysicalExpr>,
+    input_fields: SVec<WrappedSchema>,
     is_reversed: bool,
     ignore_nulls: bool,
 }

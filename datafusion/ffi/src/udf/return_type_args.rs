@@ -21,7 +21,7 @@ use datafusion_common::{DataFusionError, ffi_datafusion_err};
 use datafusion_expr::ReturnFieldArgs;
 use prost::Message;
 
-use stabby::vec::Vec as StabbyVec;
+use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
@@ -32,8 +32,8 @@ use crate::util::{
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_ReturnFieldArgs {
-    arg_fields: StabbyVec<WrappedSchema>,
-    scalar_arguments: StabbyVec<FfiOption<StabbyVec<u8>>>,
+    arg_fields: SVec<WrappedSchema>,
+    scalar_arguments: SVec<FfiOption<SVec<u8>>>,
 }
 
 impl TryFrom<ReturnFieldArgs<'_>> for FFI_ReturnFieldArgs {
@@ -49,7 +49,7 @@ impl TryFrom<ReturnFieldArgs<'_>> for FFI_ReturnFieldArgs {
                     .map(|arg| {
                         let proto_value: datafusion_proto::protobuf::ScalarValue =
                             arg.try_into()?;
-                        let proto_bytes: StabbyVec<u8> =
+                        let proto_bytes: SVec<u8> =
                             proto_value.encode_to_vec().into_iter().collect();
                         Ok(proto_bytes)
                     })

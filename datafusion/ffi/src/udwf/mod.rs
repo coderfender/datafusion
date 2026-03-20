@@ -34,8 +34,8 @@ use partition_evaluator_args::{
     FFI_PartitionEvaluatorArgs, ForeignPartitionEvaluatorArgs,
 };
 
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 
 mod partition_evaluator;
 mod partition_evaluator_args;
@@ -55,10 +55,10 @@ use crate::{df_result, rresult, rresult_return};
 #[derive(Debug)]
 pub struct FFI_WindowUDF {
     /// FFI equivalent to the `name` of a [`WindowUDF`]
-    pub name: StabbyString,
+    pub name: SString,
 
     /// FFI equivalent to the `aliases` of a [`WindowUDF`]
-    pub aliases: StabbyVec<StabbyString>,
+    pub aliases: SVec<SString>,
 
     /// FFI equivalent to the `volatility` of a [`WindowUDF`]
     pub volatility: FfiVolatility,
@@ -71,8 +71,8 @@ pub struct FFI_WindowUDF {
 
     pub field: unsafe extern "C" fn(
         udwf: &Self,
-        input_types: StabbyVec<WrappedSchema>,
-        display_name: StabbyString,
+        input_types: SVec<WrappedSchema>,
+        display_name: SString,
     ) -> FFIResult<WrappedSchema>,
 
     /// Performs type coercion. To simply this interface, all UDFs are treated as having
@@ -81,8 +81,8 @@ pub struct FFI_WindowUDF {
     /// appropriate calls on the underlying [`WindowUDF`]
     pub coerce_types: unsafe extern "C" fn(
         udf: &Self,
-        arg_types: StabbyVec<WrappedSchema>,
-    ) -> FFIResult<StabbyVec<WrappedSchema>>,
+        arg_types: SVec<WrappedSchema>,
+    ) -> FFIResult<SVec<WrappedSchema>>,
 
     pub sort_options: FfiOption<FFI_SortOptions>,
 
@@ -137,8 +137,8 @@ unsafe extern "C" fn partition_evaluator_fn_wrapper(
 
 unsafe extern "C" fn field_fn_wrapper(
     udwf: &FFI_WindowUDF,
-    input_fields: StabbyVec<WrappedSchema>,
-    display_name: StabbyString,
+    input_fields: SVec<WrappedSchema>,
+    display_name: SString,
 ) -> FFIResult<WrappedSchema> {
     unsafe {
         let inner = udwf.inner();
@@ -158,8 +158,8 @@ unsafe extern "C" fn field_fn_wrapper(
 
 unsafe extern "C" fn coerce_types_fn_wrapper(
     udwf: &FFI_WindowUDF,
-    arg_types: StabbyVec<WrappedSchema>,
-) -> FFIResult<StabbyVec<WrappedSchema>> {
+    arg_types: SVec<WrappedSchema>,
+) -> FFIResult<SVec<WrappedSchema>> {
     unsafe {
         let inner = udwf.inner();
 

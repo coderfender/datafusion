@@ -27,7 +27,7 @@ use datafusion_common::scalar::ScalarValue;
 use datafusion_expr::Accumulator;
 use prost::Message;
 
-use stabby::vec::Vec as StabbyVec;
+use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::WrappedArray;
 use crate::util::{FFIResult, FfiResult};
@@ -41,27 +41,27 @@ use crate::{df_result, rresult, rresult_return};
 pub struct FFI_Accumulator {
     pub update_batch: unsafe extern "C" fn(
         accumulator: &mut Self,
-        values: StabbyVec<WrappedArray>,
+        values: SVec<WrappedArray>,
     ) -> FFIResult<()>,
 
     // Evaluate and return a ScalarValues as protobuf bytes
     pub evaluate:
-        unsafe extern "C" fn(accumulator: &mut Self) -> FFIResult<StabbyVec<u8>>,
+        unsafe extern "C" fn(accumulator: &mut Self) -> FFIResult<SVec<u8>>,
 
     pub size: unsafe extern "C" fn(accumulator: &Self) -> usize,
 
     pub state: unsafe extern "C" fn(
         accumulator: &mut Self,
-    ) -> FFIResult<StabbyVec<StabbyVec<u8>>>,
+    ) -> FFIResult<SVec<SVec<u8>>>,
 
     pub merge_batch: unsafe extern "C" fn(
         accumulator: &mut Self,
-        states: StabbyVec<WrappedArray>,
+        states: SVec<WrappedArray>,
     ) -> FFIResult<()>,
 
     pub retract_batch: unsafe extern "C" fn(
         accumulator: &mut Self,
-        values: StabbyVec<WrappedArray>,
+        values: SVec<WrappedArray>,
     ) -> FFIResult<()>,
 
     pub supports_retract_batch: bool,
@@ -106,7 +106,7 @@ impl FFI_Accumulator {
 
 unsafe extern "C" fn update_batch_fn_wrapper(
     accumulator: &mut FFI_Accumulator,
-    values: StabbyVec<WrappedArray>,
+    values: SVec<WrappedArray>,
 ) -> FFIResult<()> {
     unsafe {
         let accumulator = accumulator.inner_mut();
@@ -123,7 +123,7 @@ unsafe extern "C" fn update_batch_fn_wrapper(
 
 unsafe extern "C" fn evaluate_fn_wrapper(
     accumulator: &mut FFI_Accumulator,
-) -> FFIResult<StabbyVec<u8>> {
+) -> FFIResult<SVec<u8>> {
     unsafe {
         let accumulator = accumulator.inner_mut();
 
@@ -141,7 +141,7 @@ unsafe extern "C" fn size_fn_wrapper(accumulator: &FFI_Accumulator) -> usize {
 
 unsafe extern "C" fn state_fn_wrapper(
     accumulator: &mut FFI_Accumulator,
-) -> FFIResult<StabbyVec<StabbyVec<u8>>> {
+) -> FFIResult<SVec<SVec<u8>>> {
     unsafe {
         let accumulator = accumulator.inner_mut();
 
@@ -151,7 +151,7 @@ unsafe extern "C" fn state_fn_wrapper(
             .map(|state_val| {
                 datafusion_proto::protobuf::ScalarValue::try_from(&state_val)
                     .map_err(DataFusionError::from)
-                    .map(|v| v.encode_to_vec().into_iter().collect::<StabbyVec<u8>>())
+                    .map(|v| v.encode_to_vec().into_iter().collect::<SVec<u8>>())
             })
             .collect::<Result<Vec<_>>>()
             .map(|state_vec| state_vec.into_iter().collect());
@@ -162,7 +162,7 @@ unsafe extern "C" fn state_fn_wrapper(
 
 unsafe extern "C" fn merge_batch_fn_wrapper(
     accumulator: &mut FFI_Accumulator,
-    states: StabbyVec<WrappedArray>,
+    states: SVec<WrappedArray>,
 ) -> FFIResult<()> {
     unsafe {
         let accumulator = accumulator.inner_mut();
@@ -180,7 +180,7 @@ unsafe extern "C" fn merge_batch_fn_wrapper(
 
 unsafe extern "C" fn retract_batch_fn_wrapper(
     accumulator: &mut FFI_Accumulator,
-    values: StabbyVec<WrappedArray>,
+    values: SVec<WrappedArray>,
 ) -> FFIResult<()> {
     unsafe {
         let accumulator = accumulator.inner_mut();

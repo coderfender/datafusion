@@ -21,8 +21,8 @@ use datafusion_common::config::{
     ConfigExtension, ConfigOptions, ExtensionOptions, TableOptions,
 };
 use datafusion_common::{DataFusionError, Result};
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 
 use crate::config::extension_options::FFI_ExtensionOptions;
 
@@ -34,14 +34,14 @@ use crate::config::extension_options::FFI_ExtensionOptions;
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct FFI_ConfigOptions {
-    base_options: StabbyVec<(StabbyString, StabbyString)>,
+    base_options: SVec<(SString, SString)>,
 
     extensions: FFI_ExtensionOptions,
 }
 
 impl From<&ConfigOptions> for FFI_ConfigOptions {
     fn from(options: &ConfigOptions) -> Self {
-        let base_options: StabbyVec<(StabbyString, StabbyString)> = options
+        let base_options: SVec<(SString, SString)> = options
             .entries()
             .into_iter()
             .filter_map(|entry| entry.value.map(|value| (entry.key, value)))
@@ -122,14 +122,14 @@ impl ExtensionOptionsFFIProvider for TableOptions {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct FFI_TableOptions {
-    base_options: StabbyVec<(StabbyString, StabbyString)>,
+    base_options: SVec<(SString, SString)>,
 
     extensions: FFI_ExtensionOptions,
 }
 
 impl From<&TableOptions> for FFI_TableOptions {
     fn from(options: &TableOptions) -> Self {
-        let base_options: StabbyVec<(StabbyString, StabbyString)> = options
+        let base_options: SVec<(SString, SString)> = options
             .entries()
             .into_iter()
             .filter_map(|entry| entry.value.map(|value| (entry.key, value)))

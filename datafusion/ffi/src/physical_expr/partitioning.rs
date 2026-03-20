@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use datafusion_physical_expr::Partitioning;
 use datafusion_physical_expr_common::physical_expr::PhysicalExpr;
-use stabby::vec::Vec as StabbyVec;
+use stabby::vec::Vec as SVec;
 
 use crate::physical_expr::FFI_PhysicalExpr;
 
@@ -29,7 +29,7 @@ use crate::physical_expr::FFI_PhysicalExpr;
 #[derive(Debug)]
 pub enum FFI_Partitioning {
     RoundRobinBatch(usize),
-    Hash(StabbyVec<FFI_PhysicalExpr>, usize),
+    Hash(SVec<FFI_PhysicalExpr>, usize),
     UnknownPartitioning(usize),
 }
 

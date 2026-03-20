@@ -36,8 +36,8 @@ use datafusion_expr::statistics::Distribution;
 use datafusion_physical_expr::PhysicalExpr;
 use datafusion_physical_expr_common::physical_expr::fmt_sql;
 
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::{WrappedArray, WrappedSchema};
 use crate::expr::columnar_value::FFI_ColumnarValue;
@@ -75,44 +75,44 @@ pub struct FFI_PhysicalExpr {
         selection: WrappedArray,
     ) -> FFIResult<FFI_ColumnarValue>,
 
-    pub children: unsafe extern "C" fn(&Self) -> StabbyVec<FFI_PhysicalExpr>,
+    pub children: unsafe extern "C" fn(&Self) -> SVec<FFI_PhysicalExpr>,
 
     pub new_with_children: unsafe extern "C" fn(
         &Self,
-        children: &StabbyVec<FFI_PhysicalExpr>,
+        children: &SVec<FFI_PhysicalExpr>,
     ) -> FFIResult<Self>,
 
     pub evaluate_bounds: unsafe extern "C" fn(
         &Self,
-        children: StabbyVec<FFI_Interval>,
+        children: SVec<FFI_Interval>,
     ) -> FFIResult<FFI_Interval>,
 
     pub propagate_constraints:
         unsafe extern "C" fn(
             &Self,
             interval: FFI_Interval,
-            children: StabbyVec<FFI_Interval>,
-        ) -> FFIResult<FfiOption<StabbyVec<FFI_Interval>>>,
+            children: SVec<FFI_Interval>,
+        ) -> FFIResult<FfiOption<SVec<FFI_Interval>>>,
 
     pub evaluate_statistics: unsafe extern "C" fn(
         &Self,
-        children: StabbyVec<FFI_Distribution>,
+        children: SVec<FFI_Distribution>,
     ) -> FFIResult<FFI_Distribution>,
 
     pub propagate_statistics: unsafe extern "C" fn(
         &Self,
         parent: FFI_Distribution,
-        children: StabbyVec<FFI_Distribution>,
+        children: SVec<FFI_Distribution>,
     ) -> FFIResult<
-        FfiOption<StabbyVec<FFI_Distribution>>,
+        FfiOption<SVec<FFI_Distribution>>,
     >,
 
     pub get_properties: unsafe extern "C" fn(
         &Self,
-        children: StabbyVec<FFI_ExprProperties>,
+        children: SVec<FFI_ExprProperties>,
     ) -> FFIResult<FFI_ExprProperties>,
 
-    pub fmt_sql: unsafe extern "C" fn(&Self) -> FFIResult<StabbyString>,
+    pub fmt_sql: unsafe extern "C" fn(&Self) -> FFIResult<SString>,
 
     pub snapshot: unsafe extern "C" fn(&Self) -> FFIResult<FfiOption<FFI_PhysicalExpr>>,
 
@@ -121,7 +121,7 @@ pub struct FFI_PhysicalExpr {
     pub is_volatile_node: unsafe extern "C" fn(&Self) -> bool,
 
     // Display trait
-    pub display: unsafe extern "C" fn(&Self) -> StabbyString,
+    pub display: unsafe extern "C" fn(&Self) -> SString,
 
     // Hash trait
     pub hash: unsafe extern "C" fn(&Self) -> u64,
@@ -230,7 +230,7 @@ unsafe extern "C" fn evaluate_selection_fn_wrapper(
 
 unsafe extern "C" fn children_fn_wrapper(
     expr: &FFI_PhysicalExpr,
-) -> StabbyVec<FFI_PhysicalExpr> {
+) -> SVec<FFI_PhysicalExpr> {
     let expr = expr.inner();
     let children = expr.children();
     children
@@ -241,7 +241,7 @@ unsafe extern "C" fn children_fn_wrapper(
 
 unsafe extern "C" fn new_with_children_fn_wrapper(
     expr: &FFI_PhysicalExpr,
-    children: &StabbyVec<FFI_PhysicalExpr>,
+    children: &SVec<FFI_PhysicalExpr>,
 ) -> FFIResult<FFI_PhysicalExpr> {
     let expr = Arc::clone(expr.inner());
     let children = children.iter().map(Into::into).collect::<Vec<_>>();
@@ -250,7 +250,7 @@ unsafe extern "C" fn new_with_children_fn_wrapper(
 
 unsafe extern "C" fn evaluate_bounds_fn_wrapper(
     expr: &FFI_PhysicalExpr,
-    children: StabbyVec<FFI_Interval>,
+    children: SVec<FFI_Interval>,
 ) -> FFIResult<FFI_Interval> {
     let expr = expr.inner();
     let children = rresult_return!(
@@ -270,8 +270,8 @@ unsafe extern "C" fn evaluate_bounds_fn_wrapper(
 unsafe extern "C" fn propagate_constraints_fn_wrapper(
     expr: &FFI_PhysicalExpr,
     interval: FFI_Interval,
-    children: StabbyVec<FFI_Interval>,
-) -> FFIResult<FfiOption<StabbyVec<FFI_Interval>>> {
+    children: SVec<FFI_Interval>,
+) -> FFIResult<FfiOption<SVec<FFI_Interval>>> {
     let expr = expr.inner();
     let interval = rresult_return!(Interval::try_from(interval));
     let children = rresult_return!(
@@ -290,7 +290,7 @@ unsafe extern "C" fn propagate_constraints_fn_wrapper(
             .map(|intervals| intervals
                 .into_iter()
                 .map(FFI_Interval::try_from)
-                .collect::<Result<StabbyVec<_>>>())
+                .collect::<Result<SVec<_>>>())
             .transpose()
     );
 
@@ -299,7 +299,7 @@ unsafe extern "C" fn propagate_constraints_fn_wrapper(
 
 unsafe extern "C" fn evaluate_statistics_fn_wrapper(
     expr: &FFI_PhysicalExpr,
-    children: StabbyVec<FFI_Distribution>,
+    children: SVec<FFI_Distribution>,
 ) -> FFIResult<FFI_Distribution> {
     let expr = expr.inner();
     let children = rresult_return!(
@@ -318,8 +318,8 @@ unsafe extern "C" fn evaluate_statistics_fn_wrapper(
 unsafe extern "C" fn propagate_statistics_fn_wrapper(
     expr: &FFI_PhysicalExpr,
     parent: FFI_Distribution,
-    children: StabbyVec<FFI_Distribution>,
-) -> FFIResult<FfiOption<StabbyVec<FFI_Distribution>>> {
+    children: SVec<FFI_Distribution>,
+) -> FFIResult<FfiOption<SVec<FFI_Distribution>>> {
     let expr = expr.inner();
     let parent = rresult_return!(Distribution::try_from(parent));
     let children = rresult_return!(
@@ -336,7 +336,7 @@ unsafe extern "C" fn propagate_statistics_fn_wrapper(
             .map(|dists| dists
                 .iter()
                 .map(FFI_Distribution::try_from)
-                .collect::<Result<StabbyVec<_>>>())
+                .collect::<Result<SVec<_>>>())
             .transpose()
     );
 
@@ -345,7 +345,7 @@ unsafe extern "C" fn propagate_statistics_fn_wrapper(
 
 unsafe extern "C" fn get_properties_fn_wrapper(
     expr: &FFI_PhysicalExpr,
-    children: StabbyVec<FFI_ExprProperties>,
+    children: SVec<FFI_ExprProperties>,
 ) -> FFIResult<FFI_ExprProperties> {
     let expr = expr.inner();
     let children = rresult_return!(
@@ -362,7 +362,7 @@ unsafe extern "C" fn get_properties_fn_wrapper(
 
 unsafe extern "C" fn fmt_sql_fn_wrapper(
     expr: &FFI_PhysicalExpr,
-) -> FFIResult<StabbyString> {
+) -> FFIResult<SString> {
     let expr = expr.inner();
     let result = fmt_sql(expr.as_ref()).to_string();
     FfiResult::Ok(result.into())
@@ -387,7 +387,7 @@ unsafe extern "C" fn is_volatile_node_fn_wrapper(expr: &FFI_PhysicalExpr) -> boo
     let expr = expr.inner();
     expr.is_volatile_node()
 }
-unsafe extern "C" fn display_fn_wrapper(expr: &FFI_PhysicalExpr) -> StabbyString {
+unsafe extern "C" fn display_fn_wrapper(expr: &FFI_PhysicalExpr) -> SString {
     let expr = expr.inner();
     format!("{expr}").into()
 }
@@ -605,7 +605,7 @@ impl PhysicalExpr for ForeignPhysicalExpr {
             let children = children
                 .iter()
                 .map(|interval| FFI_Interval::try_from(*interval))
-                .collect::<Result<StabbyVec<_>>>()?;
+                .collect::<Result<SVec<_>>>()?;
             df_result!((self.expr.evaluate_bounds)(&self.expr, children))
                 .and_then(Interval::try_from)
         }
@@ -621,7 +621,7 @@ impl PhysicalExpr for ForeignPhysicalExpr {
             let children = children
                 .iter()
                 .map(|interval| FFI_Interval::try_from(*interval))
-                .collect::<Result<StabbyVec<_>>>()?;
+                .collect::<Result<SVec<_>>>()?;
             let result = df_result!((self.expr.propagate_constraints)(
                 &self.expr, interval, children
             ))?;
@@ -643,7 +643,7 @@ impl PhysicalExpr for ForeignPhysicalExpr {
             let children = children
                 .iter()
                 .map(|dist| FFI_Distribution::try_from(*dist))
-                .collect::<Result<StabbyVec<_>>>()?;
+                .collect::<Result<SVec<_>>>()?;
 
             let result =
                 df_result!((self.expr.evaluate_statistics)(&self.expr, children))?;
@@ -661,7 +661,7 @@ impl PhysicalExpr for ForeignPhysicalExpr {
             let children = children
                 .iter()
                 .map(|dist| FFI_Distribution::try_from(*dist))
-                .collect::<Result<StabbyVec<_>>>()?;
+                .collect::<Result<SVec<_>>>()?;
             let result = df_result!((self.expr.propagate_statistics)(
                 &self.expr, parent, children
             ))?;
@@ -684,7 +684,7 @@ impl PhysicalExpr for ForeignPhysicalExpr {
             let children = children
                 .iter()
                 .map(FFI_ExprProperties::try_from)
-                .collect::<Result<StabbyVec<_>>>()?;
+                .collect::<Result<SVec<_>>>()?;
             df_result!((self.expr.get_properties)(&self.expr, children))
                 .and_then(ExprProperties::try_from)
         }

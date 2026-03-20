@@ -27,7 +27,7 @@ use arrow::ffi::to_ffi;
 use datafusion_common::error::{DataFusionError, Result};
 use datafusion_expr::{EmitTo, GroupsAccumulator};
 
-use stabby::vec::Vec as StabbyVec;
+use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::{WrappedArray, WrappedSchema};
 use crate::util::{FFIResult, FfiOption};
@@ -41,8 +41,8 @@ use crate::{df_result, rresult, rresult_return};
 pub struct FFI_GroupsAccumulator {
     pub update_batch: unsafe extern "C" fn(
         accumulator: &mut Self,
-        values: StabbyVec<WrappedArray>,
-        group_indices: StabbyVec<usize>,
+        values: SVec<WrappedArray>,
+        group_indices: SVec<usize>,
         opt_filter: FfiOption<WrappedArray>,
         total_num_groups: usize,
     ) -> FFIResult<()>,
@@ -58,21 +58,21 @@ pub struct FFI_GroupsAccumulator {
     pub state: unsafe extern "C" fn(
         accumulator: &mut Self,
         emit_to: FFI_EmitTo,
-    ) -> FFIResult<StabbyVec<WrappedArray>>,
+    ) -> FFIResult<SVec<WrappedArray>>,
 
     pub merge_batch: unsafe extern "C" fn(
         accumulator: &mut Self,
-        values: StabbyVec<WrappedArray>,
-        group_indices: StabbyVec<usize>,
+        values: SVec<WrappedArray>,
+        group_indices: SVec<usize>,
         opt_filter: FfiOption<WrappedArray>,
         total_num_groups: usize,
     ) -> FFIResult<()>,
 
     pub convert_to_state: unsafe extern "C" fn(
         accumulator: &Self,
-        values: StabbyVec<WrappedArray>,
+        values: SVec<WrappedArray>,
         opt_filter: FfiOption<WrappedArray>,
-    ) -> FFIResult<StabbyVec<WrappedArray>>,
+    ) -> FFIResult<SVec<WrappedArray>>,
 
     pub supports_convert_to_state: bool,
 
@@ -111,7 +111,7 @@ impl FFI_GroupsAccumulator {
     }
 }
 
-fn process_values(values: StabbyVec<WrappedArray>) -> Result<Vec<Arc<dyn Array>>> {
+fn process_values(values: SVec<WrappedArray>) -> Result<Vec<Arc<dyn Array>>> {
     values
         .into_iter()
         .map(|v| v.try_into().map_err(DataFusionError::from))
@@ -134,8 +134,8 @@ fn process_opt_filter(
 
 unsafe extern "C" fn update_batch_fn_wrapper(
     accumulator: &mut FFI_GroupsAccumulator,
-    values: StabbyVec<WrappedArray>,
-    group_indices: StabbyVec<usize>,
+    values: SVec<WrappedArray>,
+    group_indices: SVec<usize>,
     opt_filter: FfiOption<WrappedArray>,
     total_num_groups: usize,
 ) -> FFIResult<()> {
@@ -177,7 +177,7 @@ unsafe extern "C" fn size_fn_wrapper(accumulator: &FFI_GroupsAccumulator) -> usi
 unsafe extern "C" fn state_fn_wrapper(
     accumulator: &mut FFI_GroupsAccumulator,
     emit_to: FFI_EmitTo,
-) -> FFIResult<StabbyVec<WrappedArray>> {
+) -> FFIResult<SVec<WrappedArray>> {
     unsafe {
         let accumulator = accumulator.inner_mut();
 
@@ -186,15 +186,15 @@ unsafe extern "C" fn state_fn_wrapper(
             state
                 .into_iter()
                 .map(|arr| WrappedArray::try_from(&arr).map_err(DataFusionError::from))
-                .collect::<Result<StabbyVec<_>>>()
+                .collect::<Result<SVec<_>>>()
         )
     }
 }
 
 unsafe extern "C" fn merge_batch_fn_wrapper(
     accumulator: &mut FFI_GroupsAccumulator,
-    values: StabbyVec<WrappedArray>,
-    group_indices: StabbyVec<usize>,
+    values: SVec<WrappedArray>,
+    group_indices: SVec<usize>,
     opt_filter: FfiOption<WrappedArray>,
     total_num_groups: usize,
 ) -> FFIResult<()> {
@@ -215,9 +215,9 @@ unsafe extern "C" fn merge_batch_fn_wrapper(
 
 unsafe extern "C" fn convert_to_state_fn_wrapper(
     accumulator: &FFI_GroupsAccumulator,
-    values: StabbyVec<WrappedArray>,
+    values: SVec<WrappedArray>,
     opt_filter: FfiOption<WrappedArray>,
-) -> FFIResult<StabbyVec<WrappedArray>> {
+) -> FFIResult<SVec<WrappedArray>> {
     unsafe {
         let accumulator = accumulator.inner();
         let values = rresult_return!(process_values(values));
@@ -229,7 +229,7 @@ unsafe extern "C" fn convert_to_state_fn_wrapper(
             state
                 .iter()
                 .map(|arr| WrappedArray::try_from(arr).map_err(DataFusionError::from))
-                .collect::<Result<StabbyVec<_>>>()
+                .collect::<Result<SVec<_>>>()
         )
     }
 }
@@ -416,7 +416,7 @@ impl GroupsAccumulator for ForeignGroupsAccumulator {
             let values = values
                 .iter()
                 .map(WrappedArray::try_from)
-                .collect::<std::result::Result<StabbyVec<_>, ArrowError>>()?;
+                .collect::<std::result::Result<SVec<_>, ArrowError>>()?;
 
             let opt_filter = opt_filter
                 .map(|bool_array| to_ffi(&bool_array.to_data()))

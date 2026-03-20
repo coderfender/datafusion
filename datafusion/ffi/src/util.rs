@@ -20,8 +20,8 @@ use std::sync::Arc;
 use arrow::datatypes::{DataType, Field};
 use arrow::ffi::FFI_ArrowSchema;
 use arrow_schema::FieldRef;
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::WrappedSchema;
 
@@ -33,7 +33,7 @@ pub use crate::ffi_option::{FfiOption, FfiResult};
 /// a FFI safe variant of it, we convert errors to strings when passing results
 /// back. These are converted back and forth using the `df_result`, `rresult`,
 /// and `rresult_return` macros.
-pub type FFIResult<T> = FfiResult<T, StabbyString>;
+pub type FFIResult<T> = FfiResult<T, SString>;
 
 /// This macro is a helpful conversion utility to convert from an FFIResult to a
 /// DataFusion result.
@@ -83,7 +83,7 @@ macro_rules! rresult_return {
 /// FFI friendly counterpart, [`WrappedSchema`]
 pub fn vec_fieldref_to_rvec_wrapped(
     fields: &[FieldRef],
-) -> Result<StabbyVec<WrappedSchema>, arrow::error::ArrowError> {
+) -> Result<SVec<WrappedSchema>, arrow::error::ArrowError> {
     Ok(fields
         .iter()
         .map(FFI_ArrowSchema::try_from)
@@ -96,7 +96,7 @@ pub fn vec_fieldref_to_rvec_wrapped(
 /// This is a utility function to convert an FFI friendly vector of [`WrappedSchema`]
 /// to their equivalent [`Field`].
 pub fn rvec_wrapped_to_vec_fieldref(
-    fields: &StabbyVec<WrappedSchema>,
+    fields: &SVec<WrappedSchema>,
 ) -> Result<Vec<FieldRef>, arrow::error::ArrowError> {
     fields
         .iter()
@@ -108,7 +108,7 @@ pub fn rvec_wrapped_to_vec_fieldref(
 /// FFI friendly counterpart, [`WrappedSchema`]
 pub fn vec_datatype_to_rvec_wrapped(
     data_types: &[DataType],
-) -> Result<StabbyVec<WrappedSchema>, arrow::error::ArrowError> {
+) -> Result<SVec<WrappedSchema>, arrow::error::ArrowError> {
     Ok(data_types
         .iter()
         .map(FFI_ArrowSchema::try_from)
@@ -121,7 +121,7 @@ pub fn vec_datatype_to_rvec_wrapped(
 /// This is a utility function to convert an FFI friendly vector of [`WrappedSchema`]
 /// to their equivalent [`DataType`].
 pub fn rvec_wrapped_to_vec_datatype(
-    data_types: &StabbyVec<WrappedSchema>,
+    data_types: &SVec<WrappedSchema>,
 ) -> Result<Vec<DataType>, arrow::error::ArrowError> {
     data_types
         .iter()
@@ -136,7 +136,7 @@ pub(crate) mod tests {
     use datafusion::error::DataFusionError;
     use datafusion::prelude::SessionContext;
     use datafusion_execution::TaskContextProvider;
-    use stabby::string::String as StabbyString;
+    use stabby::string::String as SString;
 
     use crate::execution::FFI_TaskContextProvider;
     use crate::ffi_option::FfiResult;
@@ -160,10 +160,10 @@ pub(crate) mod tests {
         const VALID_VALUE: &str = "valid_value";
         const ERROR_VALUE: &str = "error_value";
 
-        let ok_r_result: FFIResult<StabbyString> =
-            FfiResult::Ok(StabbyString::from(VALID_VALUE));
-        let err_r_result: FFIResult<StabbyString> =
-            FfiResult::Err(StabbyString::from(ERROR_VALUE));
+        let ok_r_result: FFIResult<SString> =
+            FfiResult::Ok(SString::from(VALID_VALUE));
+        let err_r_result: FFIResult<SString> =
+            FfiResult::Err(SString::from(ERROR_VALUE));
 
         let returned_ok_result = df_result!(ok_r_result);
         assert!(returned_ok_result.is_ok());
@@ -181,11 +181,11 @@ pub(crate) mod tests {
             datafusion_common::ffi_err!("{ERROR_VALUE}");
 
         let returned_ok_r_result = wrap_result(ok_result);
-        let std_result: Result<String, StabbyString> = returned_ok_r_result.into();
+        let std_result: Result<String, SString> = returned_ok_r_result.into();
         assert!(std_result == Ok(VALID_VALUE.into()));
 
         let returned_err_r_result = wrap_result(err_result);
-        let std_result: Result<String, StabbyString> = returned_err_r_result.into();
+        let std_result: Result<String, SString> = returned_err_r_result.into();
         assert!(std_result.is_err());
         assert!(
             std_result

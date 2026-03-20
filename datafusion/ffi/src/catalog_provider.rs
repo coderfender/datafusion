@@ -24,8 +24,8 @@ use datafusion_common::error::Result;
 use datafusion_proto::logical_plan::{
     DefaultLogicalExtensionCodec, LogicalExtensionCodec,
 };
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContextProvider;
@@ -38,16 +38,16 @@ use crate::{df_result, rresult_return};
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_CatalogProvider {
-    pub schema_names: unsafe extern "C" fn(provider: &Self) -> StabbyVec<StabbyString>,
+    pub schema_names: unsafe extern "C" fn(provider: &Self) -> SVec<SString>,
 
     pub schema: unsafe extern "C" fn(
         provider: &Self,
-        name: StabbyString,
+        name: SString,
     ) -> FfiOption<FFI_SchemaProvider>,
 
     pub register_schema: unsafe extern "C" fn(
         provider: &Self,
-        name: StabbyString,
+        name: SString,
         schema: &FFI_SchemaProvider,
     )
         -> FFIResult<FfiOption<FFI_SchemaProvider>>,
@@ -55,7 +55,7 @@ pub struct FFI_CatalogProvider {
     pub deregister_schema:
         unsafe extern "C" fn(
             provider: &Self,
-            name: StabbyString,
+            name: SString,
             cascade: bool,
         ) -> FFIResult<FfiOption<FFI_SchemaProvider>>,
 
@@ -107,7 +107,7 @@ impl FFI_CatalogProvider {
 
 unsafe extern "C" fn schema_names_fn_wrapper(
     provider: &FFI_CatalogProvider,
-) -> StabbyVec<StabbyString> {
+) -> SVec<SString> {
     unsafe {
         let names = provider.inner().schema_names();
         names.into_iter().map(|s| s.into()).collect()
@@ -116,7 +116,7 @@ unsafe extern "C" fn schema_names_fn_wrapper(
 
 unsafe extern "C" fn schema_fn_wrapper(
     provider: &FFI_CatalogProvider,
-    name: StabbyString,
+    name: SString,
 ) -> FfiOption<FFI_SchemaProvider> {
     unsafe {
         let maybe_schema = provider.inner().schema(name.as_str());
@@ -134,7 +134,7 @@ unsafe extern "C" fn schema_fn_wrapper(
 
 unsafe extern "C" fn register_schema_fn_wrapper(
     provider: &FFI_CatalogProvider,
-    name: StabbyString,
+    name: SString,
     schema: &FFI_SchemaProvider,
 ) -> FFIResult<FfiOption<FFI_SchemaProvider>> {
     unsafe {
@@ -159,7 +159,7 @@ unsafe extern "C" fn register_schema_fn_wrapper(
 
 unsafe extern "C" fn deregister_schema_fn_wrapper(
     provider: &FFI_CatalogProvider,
-    name: StabbyString,
+    name: SString,
     cascade: bool,
 ) -> FFIResult<FfiOption<FFI_SchemaProvider>> {
     unsafe {

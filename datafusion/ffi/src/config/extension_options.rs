@@ -22,9 +22,9 @@ use std::ffi::c_void;
 use datafusion_common::config::{ConfigEntry, ConfigExtension, ExtensionOptions};
 use datafusion_common::{Result, exec_err};
 
-use stabby::str::Str as StabbyStr;
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::str::Str as SStr;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 
 use crate::df_result;
 use crate::util::{FFIResult, FfiResult};
@@ -49,12 +49,12 @@ pub struct FFI_ExtensionOptions {
     /// Set the given `key`, `value` pair
     pub set: unsafe extern "C" fn(
         &mut Self,
-        key: StabbyStr,
-        value: StabbyStr,
+        key: SStr,
+        value: SStr,
     ) -> FFIResult<()>,
 
     /// Returns the [`ConfigEntry`] stored in this [`ExtensionOptions`]
-    pub entries: unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, StabbyString)>,
+    pub entries: unsafe extern "C" fn(&Self) -> SVec<(SString, SString)>,
 
     /// Release the memory of the private data when it is no longer being used.
     pub release: unsafe extern "C" fn(&mut Self),
@@ -97,8 +97,8 @@ unsafe extern "C" fn cloned_fn_wrapper(
 
 unsafe extern "C" fn set_fn_wrapper(
     options: &mut FFI_ExtensionOptions,
-    key: StabbyStr,
-    value: StabbyStr,
+    key: SStr,
+    value: SStr,
 ) -> FFIResult<()> {
     let _ = options
         .inner_mut()
@@ -108,7 +108,7 @@ unsafe extern "C" fn set_fn_wrapper(
 
 unsafe extern "C" fn entries_fn_wrapper(
     options: &FFI_ExtensionOptions,
-) -> StabbyVec<(StabbyString, StabbyString)> {
+) -> SVec<(SString, SString)> {
     options
         .inner()
         .iter()

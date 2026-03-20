@@ -26,8 +26,8 @@ use datafusion_execution::{SendableRecordBatchStream, TaskContext};
 use datafusion_physical_plan::{
     DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties,
 };
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
 
 use crate::config::FFI_ConfigOptions;
@@ -45,13 +45,13 @@ pub struct FFI_ExecutionPlan {
     pub properties: unsafe extern "C" fn(plan: &Self) -> FFI_PlanProperties,
 
     /// Return a vector of children plans
-    pub children: unsafe extern "C" fn(plan: &Self) -> StabbyVec<FFI_ExecutionPlan>,
+    pub children: unsafe extern "C" fn(plan: &Self) -> SVec<FFI_ExecutionPlan>,
 
     pub with_new_children:
-        unsafe extern "C" fn(plan: &Self, children: StabbyVec<Self>) -> FFIResult<Self>,
+        unsafe extern "C" fn(plan: &Self, children: SVec<Self>) -> FFIResult<Self>,
 
     /// Return the plan name.
-    pub name: unsafe extern "C" fn(plan: &Self) -> StabbyString,
+    pub name: unsafe extern "C" fn(plan: &Self) -> SString,
 
     /// Execute the plan and return a record batch stream. Errors
     /// will be returned as a string.
@@ -113,7 +113,7 @@ unsafe extern "C" fn properties_fn_wrapper(
 
 unsafe extern "C" fn children_fn_wrapper(
     plan: &FFI_ExecutionPlan,
-) -> StabbyVec<FFI_ExecutionPlan> {
+) -> SVec<FFI_ExecutionPlan> {
     unsafe {
         let private_data = plan.private_data as *const ExecutionPlanPrivateData;
         let plan = &(*private_data).plan;
@@ -128,7 +128,7 @@ unsafe extern "C" fn children_fn_wrapper(
 
 unsafe extern "C" fn with_new_children_fn_wrapper(
     plan: &FFI_ExecutionPlan,
-    children: StabbyVec<FFI_ExecutionPlan>,
+    children: SVec<FFI_ExecutionPlan>,
 ) -> FFIResult<FFI_ExecutionPlan> {
     let runtime = plan.runtime();
     let inner_plan = Arc::clone(plan.inner());
@@ -179,7 +179,7 @@ unsafe extern "C" fn repartitioned_fn_wrapper(
     )
 }
 
-unsafe extern "C" fn name_fn_wrapper(plan: &FFI_ExecutionPlan) -> StabbyString {
+unsafe extern "C" fn name_fn_wrapper(plan: &FFI_ExecutionPlan) -> SString {
     plan.inner().name().into()
 }
 
@@ -389,7 +389,7 @@ impl ExecutionPlan for ForeignExecutionPlan {
         let children = children
             .into_iter()
             .map(|child| FFI_ExecutionPlan::new(child, None))
-            .collect::<StabbyVec<_>>();
+            .collect::<SVec<_>>();
         let new_plan =
             unsafe { df_result!((self.plan.with_new_children)(&self.plan, children))? };
 

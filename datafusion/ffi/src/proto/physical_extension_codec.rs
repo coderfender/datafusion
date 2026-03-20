@@ -27,9 +27,9 @@ use datafusion_expr::{
 use datafusion_physical_plan::ExecutionPlan;
 use datafusion_proto::physical_plan::PhysicalExtensionCodec;
 
-use stabby::slice::Slice as StabbySlice;
-use stabby::str::Str as StabbyStr;
-use stabby::vec::Vec as StabbyVec;
+use stabby::slice::Slice as SSlice;
+use stabby::str::Str as SStr;
+use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContextProvider;
@@ -47,46 +47,46 @@ pub struct FFI_PhysicalExtensionCodec {
     /// Decode bytes into an execution plan.
     try_decode: unsafe extern "C" fn(
         &Self,
-        buf: StabbySlice<u8>,
-        inputs: StabbyVec<FFI_ExecutionPlan>,
+        buf: SSlice<u8>,
+        inputs: SVec<FFI_ExecutionPlan>,
     ) -> FFIResult<FFI_ExecutionPlan>,
 
     /// Encode an execution plan into bytes.
     try_encode:
-        unsafe extern "C" fn(&Self, node: FFI_ExecutionPlan) -> FFIResult<StabbyVec<u8>>,
+        unsafe extern "C" fn(&Self, node: FFI_ExecutionPlan) -> FFIResult<SVec<u8>>,
 
     /// Decode bytes into a user defined scalar function.
     try_decode_udf: unsafe extern "C" fn(
         &Self,
-        name: StabbyStr,
-        buf: StabbySlice<u8>,
+        name: SStr,
+        buf: SSlice<u8>,
     ) -> FFIResult<FFI_ScalarUDF>,
 
     /// Encode a user defined scalar function into bytes.
     try_encode_udf:
-        unsafe extern "C" fn(&Self, node: FFI_ScalarUDF) -> FFIResult<StabbyVec<u8>>,
+        unsafe extern "C" fn(&Self, node: FFI_ScalarUDF) -> FFIResult<SVec<u8>>,
 
     /// Decode bytes into a user defined aggregate function.
     try_decode_udaf: unsafe extern "C" fn(
         &Self,
-        name: StabbyStr,
-        buf: StabbySlice<u8>,
+        name: SStr,
+        buf: SSlice<u8>,
     ) -> FFIResult<FFI_AggregateUDF>,
 
     /// Encode a user defined aggregate function into bytes.
     try_encode_udaf:
-        unsafe extern "C" fn(&Self, node: FFI_AggregateUDF) -> FFIResult<StabbyVec<u8>>,
+        unsafe extern "C" fn(&Self, node: FFI_AggregateUDF) -> FFIResult<SVec<u8>>,
 
     /// Decode bytes into a user defined window function.
     try_decode_udwf: unsafe extern "C" fn(
         &Self,
-        name: StabbyStr,
-        buf: StabbySlice<u8>,
+        name: SStr,
+        buf: SSlice<u8>,
     ) -> FFIResult<FFI_WindowUDF>,
 
     /// Encode a user defined window function into bytes.
     try_encode_udwf:
-        unsafe extern "C" fn(&Self, node: FFI_WindowUDF) -> FFIResult<StabbyVec<u8>>,
+        unsafe extern "C" fn(&Self, node: FFI_WindowUDF) -> FFIResult<SVec<u8>>,
 
     /// Access the current [`TaskContext`].
     task_ctx_provider: FFI_TaskContextProvider,
@@ -132,8 +132,8 @@ impl FFI_PhysicalExtensionCodec {
 
 unsafe extern "C" fn try_decode_fn_wrapper(
     codec: &FFI_PhysicalExtensionCodec,
-    buf: StabbySlice<u8>,
-    inputs: StabbyVec<FFI_ExecutionPlan>,
+    buf: SSlice<u8>,
+    inputs: SVec<FFI_ExecutionPlan>,
 ) -> FFIResult<FFI_ExecutionPlan> {
     let runtime = codec.runtime().clone();
     let task_ctx: Arc<TaskContext> =
@@ -154,7 +154,7 @@ unsafe extern "C" fn try_decode_fn_wrapper(
 unsafe extern "C" fn try_encode_fn_wrapper(
     codec: &FFI_PhysicalExtensionCodec,
     node: FFI_ExecutionPlan,
-) -> FFIResult<StabbyVec<u8>> {
+) -> FFIResult<SVec<u8>> {
     let codec = codec.inner();
 
     let plan: Arc<dyn ExecutionPlan> = rresult_return!((&node).try_into());
@@ -167,8 +167,8 @@ unsafe extern "C" fn try_encode_fn_wrapper(
 
 unsafe extern "C" fn try_decode_udf_fn_wrapper(
     codec: &FFI_PhysicalExtensionCodec,
-    name: StabbyStr,
-    buf: StabbySlice<u8>,
+    name: SStr,
+    buf: SSlice<u8>,
 ) -> FFIResult<FFI_ScalarUDF> {
     let codec = codec.inner();
 
@@ -181,7 +181,7 @@ unsafe extern "C" fn try_decode_udf_fn_wrapper(
 unsafe extern "C" fn try_encode_udf_fn_wrapper(
     codec: &FFI_PhysicalExtensionCodec,
     node: FFI_ScalarUDF,
-) -> FFIResult<StabbyVec<u8>> {
+) -> FFIResult<SVec<u8>> {
     let codec = codec.inner();
     let node: Arc<dyn ScalarUDFImpl> = (&node).into();
     let node = ScalarUDF::new_from_shared_impl(node);
@@ -194,8 +194,8 @@ unsafe extern "C" fn try_encode_udf_fn_wrapper(
 
 unsafe extern "C" fn try_decode_udaf_fn_wrapper(
     codec: &FFI_PhysicalExtensionCodec,
-    name: StabbyStr,
-    buf: StabbySlice<u8>,
+    name: SStr,
+    buf: SSlice<u8>,
 ) -> FFIResult<FFI_AggregateUDF> {
     let codec_inner = codec.inner();
     let udaf = rresult_return!(codec_inner.try_decode_udaf(name.into(), buf.as_ref()));
@@ -207,7 +207,7 @@ unsafe extern "C" fn try_decode_udaf_fn_wrapper(
 unsafe extern "C" fn try_encode_udaf_fn_wrapper(
     codec: &FFI_PhysicalExtensionCodec,
     node: FFI_AggregateUDF,
-) -> FFIResult<StabbyVec<u8>> {
+) -> FFIResult<SVec<u8>> {
     let codec = codec.inner();
     let udaf: Arc<dyn AggregateUDFImpl> = (&node).into();
     let udaf = AggregateUDF::new_from_shared_impl(udaf);
@@ -220,8 +220,8 @@ unsafe extern "C" fn try_encode_udaf_fn_wrapper(
 
 unsafe extern "C" fn try_decode_udwf_fn_wrapper(
     codec: &FFI_PhysicalExtensionCodec,
-    name: StabbyStr,
-    buf: StabbySlice<u8>,
+    name: SStr,
+    buf: SSlice<u8>,
 ) -> FFIResult<FFI_WindowUDF> {
     let codec = codec.inner();
     let udwf = rresult_return!(codec.try_decode_udwf(name.into(), buf.as_ref()));
@@ -233,7 +233,7 @@ unsafe extern "C" fn try_decode_udwf_fn_wrapper(
 unsafe extern "C" fn try_encode_udwf_fn_wrapper(
     codec: &FFI_PhysicalExtensionCodec,
     node: FFI_WindowUDF,
-) -> FFIResult<StabbyVec<u8>> {
+) -> FFIResult<SVec<u8>> {
     let codec = codec.inner();
     let udwf: Arc<dyn WindowUDFImpl> = (&node).into();
     let udwf = WindowUDF::new_from_shared_impl(udwf);

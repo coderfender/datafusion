@@ -23,8 +23,8 @@ use arrow_schema::FieldRef;
 use datafusion_common::error::DataFusionError;
 use datafusion_expr::function::AccumulatorArgs;
 use datafusion_physical_expr::{PhysicalExpr, PhysicalSortExpr};
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::physical_expr::FFI_PhysicalExpr;
@@ -40,12 +40,12 @@ pub struct FFI_AccumulatorArgs {
     return_field: WrappedSchema,
     schema: WrappedSchema,
     ignore_nulls: bool,
-    order_bys: StabbyVec<FFI_PhysicalSortExpr>,
+    order_bys: SVec<FFI_PhysicalSortExpr>,
     is_reversed: bool,
-    name: StabbyString,
+    name: SString,
     is_distinct: bool,
-    exprs: StabbyVec<FFI_PhysicalExpr>,
-    expr_fields: StabbyVec<WrappedSchema>,
+    exprs: SVec<FFI_PhysicalExpr>,
+    expr_fields: SVec<WrappedSchema>,
 }
 
 impl TryFrom<AccumulatorArgs<'_>> for FFI_AccumulatorArgs {
@@ -55,7 +55,7 @@ impl TryFrom<AccumulatorArgs<'_>> for FFI_AccumulatorArgs {
             WrappedSchema(FFI_ArrowSchema::try_from(args.return_field.as_ref())?);
         let schema = WrappedSchema(FFI_ArrowSchema::try_from(args.schema)?);
 
-        let order_bys: StabbyVec<_> = args
+        let order_bys: SVec<_> = args
             .order_bys
             .iter()
             .map(FFI_PhysicalSortExpr::from)

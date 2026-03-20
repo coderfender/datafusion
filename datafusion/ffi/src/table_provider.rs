@@ -36,7 +36,7 @@ use datafusion_proto::logical_plan::{
 use datafusion_proto::protobuf::LogicalExprList;
 use prost::Message;
 
-use stabby::vec::Vec as StabbyVec;
+use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
 
 use super::execution_plan::FFI_ExecutionPlan;
@@ -108,8 +108,8 @@ pub struct FFI_TableProvider {
     scan: unsafe extern "C" fn(
         provider: &Self,
         session: FFI_SessionRef,
-        projections: FfiOption<StabbyVec<usize>>,
-        filters_serialized: StabbyVec<u8>,
+        projections: FfiOption<SVec<usize>>,
+        filters_serialized: SVec<u8>,
         limit: FfiOption<usize>,
     ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
 
@@ -122,9 +122,9 @@ pub struct FFI_TableProvider {
     supports_filters_pushdown: Option<
         unsafe extern "C" fn(
             provider: &FFI_TableProvider,
-            filters_serialized: StabbyVec<u8>,
+            filters_serialized: SVec<u8>,
         )
-            -> FFIResult<StabbyVec<FfiTableProviderFilterPushDown>>,
+            -> FFIResult<SVec<FfiTableProviderFilterPushDown>>,
     >,
 
     insert_into: unsafe extern "C" fn(
@@ -191,7 +191,7 @@ fn supports_filters_pushdown_internal(
     filters_serialized: &[u8],
     task_ctx: &Arc<TaskContext>,
     codec: &dyn LogicalExtensionCodec,
-) -> Result<StabbyVec<FfiTableProviderFilterPushDown>> {
+) -> Result<SVec<FfiTableProviderFilterPushDown>> {
     let filters = match filters_serialized.is_empty() {
         true => vec![],
         false => {
@@ -203,7 +203,7 @@ fn supports_filters_pushdown_internal(
     };
     let filters_borrowed: Vec<&Expr> = filters.iter().collect();
 
-    let results: StabbyVec<_> = provider
+    let results: SVec<_> = provider
         .supports_filters_pushdown(&filters_borrowed)?
         .iter()
         .map(|v| v.into())
@@ -214,8 +214,8 @@ fn supports_filters_pushdown_internal(
 
 unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
     provider: &FFI_TableProvider,
-    filters_serialized: StabbyVec<u8>,
-) -> FFIResult<StabbyVec<FfiTableProviderFilterPushDown>> {
+    filters_serialized: SVec<u8>,
+) -> FFIResult<SVec<FfiTableProviderFilterPushDown>> {
     let logical_codec: Arc<dyn LogicalExtensionCodec> = (&provider.logical_codec).into();
     let task_ctx = rresult_return!(<Arc<TaskContext>>::try_from(
         &provider.logical_codec.task_ctx_provider
@@ -233,8 +233,8 @@ unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
 unsafe extern "C" fn scan_fn_wrapper(
     provider: &FFI_TableProvider,
     session: FFI_SessionRef,
-    projections: FfiOption<StabbyVec<usize>>,
-    filters_serialized: StabbyVec<u8>,
+    projections: FfiOption<SVec<usize>>,
+    filters_serialized: SVec<u8>,
     limit: FfiOption<usize>,
 ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
     let task_ctx: Result<Arc<TaskContext>, DataFusionError> =
@@ -466,7 +466,7 @@ impl TableProvider for ForeignTableProvider {
     ) -> Result<Arc<dyn ExecutionPlan>> {
         let session = FFI_SessionRef::new(session, None, self.0.logical_codec.clone());
 
-        let projections: FfiOption<StabbyVec<usize>> = projection
+        let projections: FfiOption<SVec<usize>> = projection
             .map(|p| p.iter().map(|v| v.to_owned()).collect())
             .into();
 

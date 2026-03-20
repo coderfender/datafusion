@@ -34,9 +34,9 @@ use datafusion_proto_common::from_proto::parse_proto_fields_to_fields;
 use groups_accumulator::FFI_GroupsAccumulator;
 use prost::{DecodeError, Message};
 
-use stabby::str::Str as StabbyStr;
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::str::Str as SStr;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 use std::ffi::c_void;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -59,10 +59,10 @@ mod groups_accumulator;
 #[derive(Debug)]
 pub struct FFI_AggregateUDF {
     /// FFI equivalent to the `name` of a [`AggregateUDF`]
-    pub name: StabbyString,
+    pub name: SString,
 
     /// FFI equivalent to the `aliases` of a [`AggregateUDF`]
-    pub aliases: StabbyVec<StabbyString>,
+    pub aliases: SVec<SString>,
 
     /// FFI equivalent to the `volatility` of a [`AggregateUDF`]
     pub volatility: FfiVolatility,
@@ -71,7 +71,7 @@ pub struct FFI_AggregateUDF {
     /// argument fields.
     pub return_field: unsafe extern "C" fn(
         udaf: &Self,
-        arg_fields: StabbyVec<WrappedSchema>,
+        arg_fields: SVec<WrappedSchema>,
     ) -> FFIResult<WrappedSchema>,
 
     /// FFI equivalent to the `is_nullable` of a [`AggregateUDF`]
@@ -97,12 +97,12 @@ pub struct FFI_AggregateUDF {
     /// FFI equivalent to [`AggregateUDF::state_fields`]
     pub state_fields: unsafe extern "C" fn(
         udaf: &FFI_AggregateUDF,
-        name: &StabbyStr,
-        input_fields: StabbyVec<WrappedSchema>,
+        name: &SStr,
+        input_fields: SVec<WrappedSchema>,
         return_field: WrappedSchema,
-        ordering_fields: StabbyVec<StabbyVec<u8>>,
+        ordering_fields: SVec<SVec<u8>>,
         is_distinct: bool,
-    ) -> FFIResult<StabbyVec<StabbyVec<u8>>>,
+    ) -> FFIResult<SVec<SVec<u8>>>,
 
     /// FFI equivalent to [`AggregateUDF::create_groups_accumulator`]
     pub create_groups_accumulator:
@@ -128,8 +128,8 @@ pub struct FFI_AggregateUDF {
     /// appropriate calls on the underlying [`AggregateUDF`]
     pub coerce_types: unsafe extern "C" fn(
         udf: &Self,
-        arg_types: StabbyVec<WrappedSchema>,
-    ) -> FFIResult<StabbyVec<WrappedSchema>>,
+        arg_types: SVec<WrappedSchema>,
+    ) -> FFIResult<SVec<WrappedSchema>>,
 
     /// Used to create a clone on the provider of the udaf. This should
     /// only need to be called by the receiver of the udaf.
@@ -166,7 +166,7 @@ impl FFI_AggregateUDF {
 
 unsafe extern "C" fn return_field_fn_wrapper(
     udaf: &FFI_AggregateUDF,
-    arg_fields: StabbyVec<WrappedSchema>,
+    arg_fields: SVec<WrappedSchema>,
 ) -> FFIResult<WrappedSchema> {
     unsafe {
         let udaf = udaf.inner();
@@ -270,12 +270,12 @@ unsafe extern "C" fn with_beneficial_ordering_fn_wrapper(
 
 unsafe extern "C" fn state_fields_fn_wrapper(
     udaf: &FFI_AggregateUDF,
-    name: &StabbyStr,
-    input_fields: StabbyVec<WrappedSchema>,
+    name: &SStr,
+    input_fields: SVec<WrappedSchema>,
     return_field: WrappedSchema,
-    ordering_fields: StabbyVec<StabbyVec<u8>>,
+    ordering_fields: SVec<SVec<u8>>,
     is_distinct: bool,
-) -> FFIResult<StabbyVec<StabbyVec<u8>>> {
+) -> FFIResult<SVec<SVec<u8>>> {
     unsafe {
         let udaf = udaf.inner();
 
@@ -330,8 +330,8 @@ unsafe extern "C" fn order_sensitivity_fn_wrapper(
 
 unsafe extern "C" fn coerce_types_fn_wrapper(
     udaf: &FFI_AggregateUDF,
-    arg_types: StabbyVec<WrappedSchema>,
-) -> FFIResult<StabbyVec<WrappedSchema>> {
+    arg_types: SVec<WrappedSchema>,
+) -> FFIResult<SVec<WrappedSchema>> {
     unsafe {
         let udaf = udaf.inner();
 
@@ -503,7 +503,7 @@ impl AggregateUDFImpl for ForeignAggregateUDF {
 
     fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<FieldRef>> {
         unsafe {
-            let name = StabbyStr::from(args.name);
+            let name = SStr::from(args.name);
             let input_fields = vec_fieldref_to_rvec_wrapped(args.input_fields)?;
             let return_field =
                 WrappedSchema(FFI_ArrowSchema::try_from(args.return_field.as_ref())?);

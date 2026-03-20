@@ -25,8 +25,8 @@ use datafusion_expr::{
     AggregateUDF, AggregateUDFImpl, ScalarUDF, ScalarUDFImpl, WindowUDF, WindowUDFImpl,
 };
 
-use stabby::string::String as StabbyString;
-use stabby::vec::Vec as StabbyVec;
+use stabby::string::String as SString;
+use stabby::vec::Vec as SVec;
 
 use crate::session::config::FFI_SessionConfig;
 use crate::udaf::FFI_AggregateUDF;
@@ -39,25 +39,25 @@ use crate::util::FfiOption;
 #[derive(Debug)]
 pub struct FFI_TaskContext {
     /// Return the session ID.
-    pub session_id: unsafe extern "C" fn(&Self) -> StabbyString,
+    pub session_id: unsafe extern "C" fn(&Self) -> SString,
 
     /// Return the task ID.
-    pub task_id: unsafe extern "C" fn(&Self) -> FfiOption<StabbyString>,
+    pub task_id: unsafe extern "C" fn(&Self) -> FfiOption<SString>,
 
     /// Return the session configuration.
     pub session_config: unsafe extern "C" fn(&Self) -> FFI_SessionConfig,
 
     /// Returns a vec of name-function pairs for scalar functions.
     pub scalar_functions:
-        unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, FFI_ScalarUDF)>,
+        unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_ScalarUDF)>,
 
     /// Returns a vec of name-function pairs for aggregate functions.
     pub aggregate_functions:
-        unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, FFI_AggregateUDF)>,
+        unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_AggregateUDF)>,
 
     /// Returns a vec of name-function pairs for window functions.
     pub window_functions:
-        unsafe extern "C" fn(&Self) -> StabbyVec<(StabbyString, FFI_WindowUDF)>,
+        unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_WindowUDF)>,
 
     /// Release the memory of the private data when it is no longer being used.
     pub release: unsafe extern "C" fn(arg: &mut Self),
@@ -85,7 +85,7 @@ impl FFI_TaskContext {
     }
 }
 
-unsafe extern "C" fn session_id_fn_wrapper(ctx: &FFI_TaskContext) -> StabbyString {
+unsafe extern "C" fn session_id_fn_wrapper(ctx: &FFI_TaskContext) -> SString {
     unsafe {
         let ctx = ctx.inner();
         ctx.session_id().into()
@@ -94,7 +94,7 @@ unsafe extern "C" fn session_id_fn_wrapper(ctx: &FFI_TaskContext) -> StabbyStrin
 
 unsafe extern "C" fn task_id_fn_wrapper(
     ctx: &FFI_TaskContext,
-) -> FfiOption<StabbyString> {
+) -> FfiOption<SString> {
     unsafe {
         let ctx = ctx.inner();
         ctx.task_id().map(|s| s.as_str().into()).into()
@@ -112,7 +112,7 @@ unsafe extern "C" fn session_config_fn_wrapper(
 
 unsafe extern "C" fn scalar_functions_fn_wrapper(
     ctx: &FFI_TaskContext,
-) -> StabbyVec<(StabbyString, FFI_ScalarUDF)> {
+) -> SVec<(SString, FFI_ScalarUDF)> {
     unsafe {
         let ctx = ctx.inner();
         ctx.scalar_functions()
@@ -124,7 +124,7 @@ unsafe extern "C" fn scalar_functions_fn_wrapper(
 
 unsafe extern "C" fn aggregate_functions_fn_wrapper(
     ctx: &FFI_TaskContext,
-) -> StabbyVec<(StabbyString, FFI_AggregateUDF)> {
+) -> SVec<(SString, FFI_AggregateUDF)> {
     unsafe {
         let ctx = ctx.inner();
         ctx.aggregate_functions()
@@ -141,7 +141,7 @@ unsafe extern "C" fn aggregate_functions_fn_wrapper(
 
 unsafe extern "C" fn window_functions_fn_wrapper(
     ctx: &FFI_TaskContext,
-) -> StabbyVec<(StabbyString, FFI_WindowUDF)> {
+) -> SVec<(SString, FFI_WindowUDF)> {
     unsafe {
         let ctx = ctx.inner();
         ctx.window_functions()
