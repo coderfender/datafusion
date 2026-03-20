@@ -47,9 +47,7 @@ pub struct FFI_PlanProperties {
 
     /// The output ordering of the plan.
     pub output_ordering:
-        unsafe extern "C" fn(
-            plan: &Self,
-        ) -> FfiOption<StabbyVec<FFI_PhysicalSortExpr>>,
+        unsafe extern "C" fn(plan: &Self) -> FfiOption<StabbyVec<FFI_PhysicalSortExpr>>,
 
     /// Return the schema of the plan.
     pub schema: unsafe extern "C" fn(plan: &Self) -> WrappedSchema,

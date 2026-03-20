@@ -45,12 +45,12 @@ pub struct FFI_CatalogProvider {
         name: StabbyString,
     ) -> FfiOption<FFI_SchemaProvider>,
 
-    pub register_schema:
-        unsafe extern "C" fn(
-            provider: &Self,
-            name: StabbyString,
-            schema: &FFI_SchemaProvider,
-        ) -> FFIResult<FfiOption<FFI_SchemaProvider>>,
+    pub register_schema: unsafe extern "C" fn(
+        provider: &Self,
+        name: StabbyString,
+        schema: &FFI_SchemaProvider,
+    )
+        -> FFIResult<FfiOption<FFI_SchemaProvider>>,
 
     pub deregister_schema:
         unsafe extern "C" fn(

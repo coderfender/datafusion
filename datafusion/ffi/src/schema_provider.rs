@@ -47,22 +47,21 @@ pub struct FFI_SchemaProvider {
     pub table: unsafe extern "C" fn(
         provider: &Self,
         name: StabbyString,
-    ) -> FfiFuture<
-        FFIResult<FfiOption<FFI_TableProvider>>,
-    >,
+    )
+        -> FfiFuture<FFIResult<FfiOption<FFI_TableProvider>>>,
 
-    pub register_table:
-        unsafe extern "C" fn(
-            provider: &Self,
-            name: StabbyString,
-            table: FFI_TableProvider,
-        ) -> FFIResult<FfiOption<FFI_TableProvider>>,
+    pub register_table: unsafe extern "C" fn(
+        provider: &Self,
+        name: StabbyString,
+        table: FFI_TableProvider,
+    )
+        -> FFIResult<FfiOption<FFI_TableProvider>>,
 
-    pub deregister_table:
-        unsafe extern "C" fn(
-            provider: &Self,
-            name: StabbyString,
-        ) -> FFIResult<FfiOption<FFI_TableProvider>>,
+    pub deregister_table: unsafe extern "C" fn(
+        provider: &Self,
+        name: StabbyString,
+    )
+        -> FFIResult<FfiOption<FFI_TableProvider>>,
 
     pub table_exist: unsafe extern "C" fn(provider: &Self, name: StabbyString) -> bool,
 

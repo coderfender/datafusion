@@ -25,7 +25,6 @@ use datafusion_common::{DataFusionError, Result, ffi_datafusion_err, ffi_err};
 use datafusion_execution::{RecordBatchStream, SendableRecordBatchStream};
 use futures::{Stream, TryStreamExt};
 
-
 use tokio::runtime::Handle;
 
 use crate::arrow_wrappers::{WrappedArray, WrappedSchema};

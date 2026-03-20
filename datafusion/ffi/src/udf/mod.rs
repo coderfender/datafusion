@@ -35,7 +35,6 @@ use return_type_args::{
     FFI_ReturnFieldArgs, ForeignReturnFieldArgs, ForeignReturnFieldArgsOwned,
 };
 
-
 use stabby::string::String as StabbyString;
 use stabby::vec::Vec as StabbyVec;
 
