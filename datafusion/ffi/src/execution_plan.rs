@@ -34,7 +34,7 @@ use crate::config::FFI_ConfigOptions;
 use crate::execution::FFI_TaskContext;
 use crate::plan_properties::FFI_PlanProperties;
 use crate::record_batch_stream::FFI_RecordBatchStream;
-use crate::util::FFIResult;
+use crate::util::{FFIResult, FfiOption};
 use crate::{df_result, rresult, rresult_return};
 
 /// A stable struct for sharing a [`ExecutionPlan`] across FFI boundaries.
@@ -48,7 +48,7 @@ pub struct FFI_ExecutionPlan {
     pub children: unsafe extern "C" fn(plan: &Self) -> StabbyVec<FFI_ExecutionPlan>,
 
     pub with_new_children:
-        unsafe extern "C" fn(plan: &Self, children: RVec<Self>) -> FFIResult<Self>,
+        unsafe extern "C" fn(plan: &Self, children: StabbyVec<Self>) -> FFIResult<Self>,
 
     /// Return the plan name.
     pub name: unsafe extern "C" fn(plan: &Self) -> StabbyString,
@@ -65,7 +65,8 @@ pub struct FFI_ExecutionPlan {
         plan: &Self,
         target_partitions: usize,
         config: FFI_ConfigOptions,
-    ) -> FFIResult<ROption<FFI_ExecutionPlan>>,
+    )
+        -> FFIResult<FfiOption<FFI_ExecutionPlan>>,
 
     /// Used to create a clone on the provider of the execution plan. This should
     /// only need to be called by the receiver of the plan.
@@ -125,6 +126,24 @@ unsafe extern "C" fn children_fn_wrapper(
     }
 }
 
+unsafe extern "C" fn with_new_children_fn_wrapper(
+    plan: &FFI_ExecutionPlan,
+    children: StabbyVec<FFI_ExecutionPlan>,
+) -> FFIResult<FFI_ExecutionPlan> {
+    let runtime = plan.runtime();
+    let inner_plan = Arc::clone(plan.inner());
+
+    let children: Result<Vec<Arc<dyn ExecutionPlan>>> = children
+        .iter()
+        .map(<Arc<dyn ExecutionPlan>>::try_from)
+        .collect();
+
+    let children = rresult_return!(children);
+    let new_plan = rresult_return!(inner_plan.with_new_children(children));
+
+    crate::ffi_option::FfiResult::Ok(FFI_ExecutionPlan::new(new_plan, runtime))
+}
+
 unsafe extern "C" fn execute_fn_wrapper(
     plan: &FFI_ExecutionPlan,
     partition: usize,
@@ -146,7 +165,7 @@ unsafe extern "C" fn repartitioned_fn_wrapper(
     plan: &FFI_ExecutionPlan,
     target_partitions: usize,
     config: FFI_ConfigOptions,
-) -> FFIResult<ROption<FFI_ExecutionPlan>> {
+) -> FFIResult<FfiOption<FFI_ExecutionPlan>> {
     let maybe_config: Result<ConfigOptions, DataFusionError> = config.try_into();
     let config = rresult_return!(maybe_config);
     let runtime = plan.runtime();
@@ -370,7 +389,7 @@ impl ExecutionPlan for ForeignExecutionPlan {
         let children = children
             .into_iter()
             .map(|child| FFI_ExecutionPlan::new(child, None))
-            .collect::<RVec<_>>();
+            .collect::<StabbyVec<_>>();
         let new_plan =
             unsafe { df_result!((self.plan.with_new_children)(&self.plan, children))? };
 

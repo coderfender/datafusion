@@ -78,6 +78,7 @@ datafusion-functions-aggregate = { workspace = true }
 datafusion-functions-aggregate-common = { workspace = true }
 datafusion-functions-window = { workspace = true }
 doc-comment = { workspace = true }
+libloading = "0.8"
 
 [features]
 integration-tests = [

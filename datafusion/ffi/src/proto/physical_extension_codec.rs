@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use std::any::Any;
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -29,7 +30,6 @@ use datafusion_proto::physical_plan::PhysicalExtensionCodec;
 use stabby::slice::Slice as StabbySlice;
 use stabby::str::Str as StabbyStr;
 use stabby::vec::Vec as StabbyVec;
-use std::{any::Any, ffi::c_void, sync::Arc};
 use tokio::runtime::Handle;
 
 use crate::execution::FFI_TaskContextProvider;
@@ -149,7 +149,6 @@ unsafe extern "C" fn try_decode_fn_wrapper(
         rresult_return!(codec.try_decode(buf.as_ref(), &inputs, task_ctx.as_ref()));
 
     FfiResult::Ok(FFI_ExecutionPlan::new(plan, runtime))
-
 }
 
 unsafe extern "C" fn try_encode_fn_wrapper(

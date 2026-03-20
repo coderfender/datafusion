@@ -2133,6 +2133,7 @@ dependencies = [
  "datafusion-session",
  "doc-comment",
  "futures",
+ "libloading",
  "log",
  "prost",
  "semver",
