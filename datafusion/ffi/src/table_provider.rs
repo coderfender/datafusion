@@ -41,12 +41,12 @@ use stabby::vec::Vec as StabbyVec;
 use tokio::runtime::Handle;
 
 use super::execution_plan::FFI_ExecutionPlan;
-use super::insert_op::FFI_InsertOp;
+use super::insert_op::FFiInsertOp;
 use crate::arrow_wrappers::WrappedSchema;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::session::{FFI_SessionRef, ForeignSession};
-use crate::table_source::{FFI_TableProviderFilterPushDown, FFI_TableType};
+use crate::table_source::{FfiTableProviderFilterPushDown, FFI_TableType};
 use crate::util::{FFIResult, FfiOption, FfiResult};
 use crate::{df_result, rresult_return};
 
@@ -125,14 +125,14 @@ pub struct FFI_TableProvider {
             provider: &FFI_TableProvider,
             filters_serialized: StabbyVec<u8>,
         )
-            -> FFIResult<StabbyVec<FFI_TableProviderFilterPushDown>>,
+            -> FFIResult<StabbyVec<FfiTableProviderFilterPushDown>>,
     >,
 
     insert_into: unsafe extern "C" fn(
         provider: &Self,
         session: FFI_SessionRef,
         input: &FFI_ExecutionPlan,
-        insert_op: FFI_InsertOp,
+        insert_op: FFiInsertOp,
     ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
@@ -192,7 +192,7 @@ fn supports_filters_pushdown_internal(
     filters_serialized: &[u8],
     task_ctx: &Arc<TaskContext>,
     codec: &dyn LogicalExtensionCodec,
-) -> Result<StabbyVec<FFI_TableProviderFilterPushDown>> {
+) -> Result<StabbyVec<FfiTableProviderFilterPushDown>> {
     let filters = match filters_serialized.is_empty() {
         true => vec![],
         false => {
@@ -216,7 +216,7 @@ fn supports_filters_pushdown_internal(
 unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
     provider: &FFI_TableProvider,
     filters_serialized: StabbyVec<u8>,
-) -> FFIResult<StabbyVec<FFI_TableProviderFilterPushDown>> {
+) -> FFIResult<StabbyVec<FfiTableProviderFilterPushDown>> {
     let logical_codec: Arc<dyn LogicalExtensionCodec> = (&provider.logical_codec).into();
     let task_ctx = rresult_return!(<Arc<TaskContext>>::try_from(
         &provider.logical_codec.task_ctx_provider
@@ -288,7 +288,7 @@ unsafe extern "C" fn insert_into_fn_wrapper(
     provider: &FFI_TableProvider,
     session: FFI_SessionRef,
     input: &FFI_ExecutionPlan,
-    insert_op: FFI_InsertOp,
+    insert_op: FFiInsertOp,
 ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
     let runtime = provider.runtime().clone();
     let internal_provider = Arc::clone(provider.inner());
@@ -532,7 +532,7 @@ impl TableProvider for ForeignTableProvider {
 
         let rc = Handle::try_current().ok();
         let input = FFI_ExecutionPlan::new(input, rc);
-        let insert_op: FFI_InsertOp = insert_op.into();
+        let insert_op: FFiInsertOp = insert_op.into();
 
         let plan = unsafe {
             let maybe_plan =

@@ -19,13 +19,13 @@ use datafusion_expr::Volatility;
 
 #[repr(u8)]
 #[derive(Debug, Clone)]
-pub enum FFI_Volatility {
+pub enum FfiVolatility {
     Immutable,
     Stable,
     Volatile,
 }
 
-impl From<Volatility> for FFI_Volatility {
+impl From<Volatility> for FfiVolatility {
     fn from(value: Volatility) -> Self {
         match value {
             Volatility::Immutable => Self::Immutable,
@@ -35,12 +35,12 @@ impl From<Volatility> for FFI_Volatility {
     }
 }
 
-impl From<&FFI_Volatility> for Volatility {
-    fn from(value: &FFI_Volatility) -> Self {
+impl From<&FfiVolatility> for Volatility {
+    fn from(value: &FfiVolatility) -> Self {
         match value {
-            FFI_Volatility::Immutable => Self::Immutable,
-            FFI_Volatility::Stable => Self::Stable,
-            FFI_Volatility::Volatile => Self::Volatile,
+            FfiVolatility::Immutable => Self::Immutable,
+            FfiVolatility::Stable => Self::Stable,
+            FfiVolatility::Volatile => Self::Volatile,
         }
     }
 }
@@ -49,10 +49,10 @@ impl From<&FFI_Volatility> for Volatility {
 mod tests {
     use datafusion::logical_expr::Volatility;
 
-    use super::FFI_Volatility;
+    use super::FfiVolatility;
 
     fn test_round_trip_volatility(volatility: Volatility) {
-        let ffi_volatility: FFI_Volatility = volatility.into();
+        let ffi_volatility: FfiVolatility = volatility.into();
         let round_trip: Volatility = (&ffi_volatility).into();
 
         assert_eq!(volatility, round_trip);

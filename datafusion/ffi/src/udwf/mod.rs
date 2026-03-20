@@ -48,7 +48,7 @@ use crate::util::{
     rvec_wrapped_to_vec_fieldref, vec_datatype_to_rvec_wrapped,
     vec_fieldref_to_rvec_wrapped,
 };
-use crate::volatility::FFI_Volatility;
+use crate::volatility::FfiVolatility;
 use crate::{df_result, rresult, rresult_return};
 
 /// A stable struct for sharing a [`WindowUDF`] across FFI boundaries.
@@ -62,7 +62,7 @@ pub struct FFI_WindowUDF {
     pub aliases: StabbyVec<StabbyString>,
 
     /// FFI equivalent to the `volatility` of a [`WindowUDF`]
-    pub volatility: FFI_Volatility,
+    pub volatility: FfiVolatility,
 
     pub partition_evaluator: unsafe extern "C" fn(
         udwf: &Self,

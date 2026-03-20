@@ -19,28 +19,28 @@ use datafusion_expr::logical_plan::dml::InsertOp;
 
 /// FFI safe version of [`InsertOp`].
 #[repr(u8)]
-pub enum FFI_InsertOp {
+pub enum FFiInsertOp {
     Append,
     Overwrite,
     Replace,
 }
 
-impl From<FFI_InsertOp> for InsertOp {
-    fn from(value: FFI_InsertOp) -> Self {
+impl From<FFiInsertOp> for InsertOp {
+    fn from(value: FFiInsertOp) -> Self {
         match value {
-            FFI_InsertOp::Append => InsertOp::Append,
-            FFI_InsertOp::Overwrite => InsertOp::Overwrite,
-            FFI_InsertOp::Replace => InsertOp::Replace,
+            FFiInsertOp::Append => InsertOp::Append,
+            FFiInsertOp::Overwrite => InsertOp::Overwrite,
+            FFiInsertOp::Replace => InsertOp::Replace,
         }
     }
 }
 
-impl From<InsertOp> for FFI_InsertOp {
+impl From<InsertOp> for FFiInsertOp {
     fn from(value: InsertOp) -> Self {
         match value {
-            InsertOp::Append => FFI_InsertOp::Append,
-            InsertOp::Overwrite => FFI_InsertOp::Overwrite,
-            InsertOp::Replace => FFI_InsertOp::Replace,
+            InsertOp::Append => FFiInsertOp::Append,
+            InsertOp::Overwrite => FFiInsertOp::Overwrite,
+            InsertOp::Replace => FFiInsertOp::Replace,
         }
     }
 }
@@ -49,10 +49,10 @@ impl From<InsertOp> for FFI_InsertOp {
 mod tests {
     use datafusion::logical_expr::dml::InsertOp;
 
-    use super::FFI_InsertOp;
+    use super::FFiInsertOp;
 
     fn test_round_trip_insert_op(insert_op: InsertOp) {
-        let ffi_insert_op: FFI_InsertOp = insert_op.into();
+        let ffi_insert_op: FFiInsertOp = insert_op.into();
         let round_trip: InsertOp = ffi_insert_op.into();
 
         assert_eq!(insert_op, round_trip);

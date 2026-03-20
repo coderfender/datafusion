@@ -47,7 +47,7 @@ use crate::util::{
     FFIResult, FfiOption, FfiResult, rvec_wrapped_to_vec_datatype, rvec_wrapped_to_vec_fieldref,
     vec_datatype_to_rvec_wrapped, vec_fieldref_to_rvec_wrapped,
 };
-use crate::volatility::FFI_Volatility;
+use crate::volatility::FfiVolatility;
 use crate::{df_result, rresult, rresult_return};
 
 mod accumulator;
@@ -65,7 +65,7 @@ pub struct FFI_AggregateUDF {
     pub aliases: StabbyVec<StabbyString>,
 
     /// FFI equivalent to the `volatility` of a [`AggregateUDF`]
-    pub volatility: FFI_Volatility,
+    pub volatility: FfiVolatility,
 
     /// Determines the return field of the underlying [`AggregateUDF`] based on the
     /// argument fields.
