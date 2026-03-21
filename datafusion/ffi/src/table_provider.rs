@@ -36,7 +36,7 @@ use datafusion_proto::logical_plan::{
 use datafusion_proto::protobuf::LogicalExprList;
 use prost::Message;
 
-use stabby::vec::Vec as StabbyVec;
+use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
 
 use super::execution_plan::FFI_ExecutionPlan;
@@ -108,8 +108,8 @@ pub struct FFI_TableProvider {
     scan: unsafe extern "C" fn(
         provider: &Self,
         session: FFI_SessionRef,
-        projections: FfiOption<StabbyVec<usize>>,
-        filters_serialized: StabbyVec<u8>,
+        projections: FfiOption<SVec<usize>>,
+        filters_serialized: SVec<u8>,
         limit: FfiOption<usize>,
     ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
 
@@ -122,9 +122,8 @@ pub struct FFI_TableProvider {
     supports_filters_pushdown: Option<
         unsafe extern "C" fn(
             provider: &FFI_TableProvider,
-            filters_serialized: StabbyVec<u8>,
-        )
-            -> FFIResult<StabbyVec<FfiTableProviderFilterPushDown>>,
+            filters_serialized: SVec<u8>,
+        ) -> FFIResult<SVec<FfiTableProviderFilterPushDown>>,
     >,
 
     insert_into: unsafe extern "C" fn(
@@ -191,7 +190,7 @@ fn supports_filters_pushdown_internal(
     filters_serialized: &[u8],
     task_ctx: &Arc<TaskContext>,
     codec: &dyn LogicalExtensionCodec,
-) -> Result<StabbyVec<FfiTableProviderFilterPushDown>> {
+) -> Result<SVec<FfiTableProviderFilterPushDown>> {
     let filters = match filters_serialized.is_empty() {
         true => vec![],
         false => {
@@ -203,7 +202,7 @@ fn supports_filters_pushdown_internal(
     };
     let filters_borrowed: Vec<&Expr> = filters.iter().collect();
 
-    let results: StabbyVec<_> = provider
+    let results: SVec<_> = provider
         .supports_filters_pushdown(&filters_borrowed)?
         .iter()
         .map(|v| v.into())
@@ -214,8 +213,8 @@ fn supports_filters_pushdown_internal(
 
 unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
     provider: &FFI_TableProvider,
-    filters_serialized: StabbyVec<u8>,
-) -> FFIResult<StabbyVec<FfiTableProviderFilterPushDown>> {
+    filters_serialized: SVec<u8>,
+) -> FFIResult<SVec<FfiTableProviderFilterPushDown>> {
     let logical_codec: Arc<dyn LogicalExtensionCodec> = (&provider.logical_codec).into();
     let task_ctx = rresult_return!(<Arc<TaskContext>>::try_from(
         &provider.logical_codec.task_ctx_provider
@@ -233,8 +232,8 @@ unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
 unsafe extern "C" fn scan_fn_wrapper(
     provider: &FFI_TableProvider,
     session: FFI_SessionRef,
-    projections: FfiOption<StabbyVec<usize>>,
-    filters_serialized: StabbyVec<u8>,
+    projections: FfiOption<SVec<usize>>,
+    filters_serialized: SVec<u8>,
     limit: FfiOption<usize>,
 ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
     let task_ctx: Result<Arc<TaskContext>, DataFusionError> =
@@ -270,11 +269,12 @@ unsafe extern "C" fn scan_fn_wrapper(
             }
         };
 
-        let projections: Vec<_> = projections.into_iter().collect();
+        let projections: Option<Vec<usize>> =
+            projections.into_option().map(|p| p.into_iter().collect());
 
         let plan = rresult_return!(
             internal_provider
-                .scan(session, Some(&projections), &filters, limit.into())
+                .scan(session, projections.as_ref(), &filters, limit.into())
                 .await
         );
 
@@ -391,6 +391,9 @@ impl FFI_TableProvider {
         runtime: Option<Handle>,
         logical_codec: FFI_LogicalExtensionCodec,
     ) -> Self {
+        if let Some(provider) = provider.as_any().downcast_ref::<ForeignTableProvider>() {
+            return provider.0.clone();
+        }
         let private_data = Box::new(ProviderPrivateData { provider, runtime });
 
         Self {
@@ -462,7 +465,7 @@ impl TableProvider for ForeignTableProvider {
     ) -> Result<Arc<dyn ExecutionPlan>> {
         let session = FFI_SessionRef::new(session, None, self.0.logical_codec.clone());
 
-        let projections: FfiOption<StabbyVec<usize>> = projection
+        let projections: FfiOption<SVec<usize>> = projection
             .map(|p| p.iter().map(|v| v.to_owned()).collect())
             .into();
 
@@ -476,7 +479,7 @@ impl TableProvider for ForeignTableProvider {
             let maybe_plan = (self.0.scan)(
                 &self.0,
                 session,
-                projections.unwrap_or_default(),
+                projections,
                 filters_serialized,
                 limit.into(),
             )
@@ -663,8 +666,9 @@ mod tests {
 
         let provider = Arc::new(MemTable::try_new(schema, vec![vec![batch1]])?);
 
-        let ffi_provider =
+        let mut ffi_provider =
             FFI_TableProvider::new(provider, true, None, task_ctx_provider, None);
+        ffi_provider.library_marker_id = crate::mock_foreign_marker_id;
 
         let foreign_table_provider: Arc<dyn TableProvider> = (&ffi_provider).into();
 
@@ -714,6 +718,64 @@ mod tests {
                 .downcast_ref::<ForeignTableProvider>()
                 .is_some()
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_scan_with_none_projection_returns_all_columns() -> Result<()> {
+        use arrow::datatypes::Field;
+        use datafusion::arrow::array::Float32Array;
+        use datafusion::arrow::datatypes::DataType;
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+        use datafusion::physical_plan::collect;
+
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("a", DataType::Float32, false),
+            Field::new("b", DataType::Float32, false),
+            Field::new("c", DataType::Float32, false),
+        ]));
+
+        let batch = RecordBatch::try_new(
+            Arc::clone(&schema),
+            vec![
+                Arc::new(Float32Array::from(vec![1.0, 2.0])),
+                Arc::new(Float32Array::from(vec![3.0, 4.0])),
+                Arc::new(Float32Array::from(vec![5.0, 6.0])),
+            ],
+        )?;
+
+        let provider =
+            Arc::new(MemTable::try_new(Arc::clone(&schema), vec![vec![batch]])?);
+
+        let ctx = Arc::new(SessionContext::new());
+        let task_ctx_provider = Arc::clone(&ctx) as Arc<dyn TaskContextProvider>;
+        let task_ctx_provider = FFI_TaskContextProvider::from(&task_ctx_provider);
+
+        // Wrap in FFI and force the foreign path (not local bypass)
+        let mut ffi_provider =
+            FFI_TableProvider::new(provider, true, None, task_ctx_provider, None);
+        ffi_provider.library_marker_id = crate::mock_foreign_marker_id;
+
+        let foreign_table_provider: Arc<dyn TableProvider> = (&ffi_provider).into();
+
+        // Call scan with projection=None, meaning "return all columns"
+        let plan = foreign_table_provider
+            .scan(&ctx.state(), None, &[], None)
+            .await?;
+        assert_eq!(
+            plan.schema().fields().len(),
+            3,
+            "scan(projection=None) should return all columns; got {}",
+            plan.schema().fields().len()
+        );
+
+        // Also verify we can execute and get correct data
+        let batches = collect(plan, ctx.task_ctx()).await?;
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].num_columns(), 3);
+        assert_eq!(batches[0].num_rows(), 2);
 
         Ok(())
     }
