@@ -18,37 +18,38 @@
 use datafusion_expr::{TableProviderFilterPushDown, TableType};
 
 /// FFI safe version of [`TableProviderFilterPushDown`].
+#[expect(non_camel_case_types)]
 #[repr(u8)]
-pub enum FfiTableProviderFilterPushDown {
+pub enum FFI_TableProviderFilterPushDown {
     Unsupported,
     Inexact,
     Exact,
 }
 
-impl From<&FfiTableProviderFilterPushDown> for TableProviderFilterPushDown {
-    fn from(value: &FfiTableProviderFilterPushDown) -> Self {
+impl From<&FFI_TableProviderFilterPushDown> for TableProviderFilterPushDown {
+    fn from(value: &FFI_TableProviderFilterPushDown) -> Self {
         match value {
-            FfiTableProviderFilterPushDown::Unsupported => {
+            FFI_TableProviderFilterPushDown::Unsupported => {
                 TableProviderFilterPushDown::Unsupported
             }
-            FfiTableProviderFilterPushDown::Inexact => {
+            FFI_TableProviderFilterPushDown::Inexact => {
                 TableProviderFilterPushDown::Inexact
             }
-            FfiTableProviderFilterPushDown::Exact => TableProviderFilterPushDown::Exact,
+            FFI_TableProviderFilterPushDown::Exact => TableProviderFilterPushDown::Exact,
         }
     }
 }
 
-impl From<&TableProviderFilterPushDown> for FfiTableProviderFilterPushDown {
+impl From<&TableProviderFilterPushDown> for FFI_TableProviderFilterPushDown {
     fn from(value: &TableProviderFilterPushDown) -> Self {
         match value {
             TableProviderFilterPushDown::Unsupported => {
-                FfiTableProviderFilterPushDown::Unsupported
+                FFI_TableProviderFilterPushDown::Unsupported
             }
             TableProviderFilterPushDown::Inexact => {
-                FfiTableProviderFilterPushDown::Inexact
+                FFI_TableProviderFilterPushDown::Inexact
             }
-            TableProviderFilterPushDown::Exact => FfiTableProviderFilterPushDown::Exact,
+            TableProviderFilterPushDown::Exact => FFI_TableProviderFilterPushDown::Exact,
         }
     }
 }
@@ -89,7 +90,7 @@ mod tests {
     use super::*;
 
     fn round_trip_filter_pushdown(pushdown: TableProviderFilterPushDown) -> Result<()> {
-        let ffi_pushdown: FfiTableProviderFilterPushDown = (&pushdown).into();
+        let ffi_pushdown: FFI_TableProviderFilterPushDown = (&pushdown).into();
         let round_trip: TableProviderFilterPushDown = (&ffi_pushdown).into();
 
         assert_eq!(pushdown, round_trip);

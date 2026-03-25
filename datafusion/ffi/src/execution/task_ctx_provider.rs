@@ -23,7 +23,7 @@ use datafusion_execution::{TaskContext, TaskContextProvider};
 
 use crate::execution::task_ctx::FFI_TaskContext;
 use crate::util::FFIResult;
-use crate::{df_result, rresult};
+use crate::{df_result, sresult};
 
 /// Struct for accessing the [`TaskContext`]. This method contains a weak
 /// reference, so there are no guarantees that the [`TaskContext`] remains
@@ -76,7 +76,7 @@ unsafe extern "C" fn task_ctx_fn_wrapper(
     ctx_provider: &FFI_TaskContextProvider,
 ) -> FFIResult<FFI_TaskContext> {
     unsafe {
-        rresult!(
+        sresult!(
             ctx_provider
                 .inner()
                 .map(FFI_TaskContext::from)

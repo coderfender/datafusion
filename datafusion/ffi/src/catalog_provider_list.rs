@@ -30,7 +30,7 @@ use tokio::runtime::Handle;
 use crate::catalog_provider::{FFI_CatalogProvider, ForeignCatalogProvider};
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
-use crate::util::FfiOption;
+use crate::util::FFI_Option;
 
 /// A stable struct for sharing [`CatalogProviderList`] across FFI boundaries.
 #[repr(C)]
@@ -41,14 +41,14 @@ pub struct FFI_CatalogProviderList {
         &Self,
         name: SString,
         catalog: &FFI_CatalogProvider,
-    ) -> FfiOption<FFI_CatalogProvider>,
+    ) -> FFI_Option<FFI_CatalogProvider>,
 
     /// List of existing catalogs
     pub catalog_names: unsafe extern "C" fn(&Self) -> SVec<SString>,
 
     /// Access a catalog
     pub catalog:
-        unsafe extern "C" fn(&Self, name: SString) -> FfiOption<FFI_CatalogProvider>,
+        unsafe extern "C" fn(&Self, name: SString) -> FFI_Option<FFI_CatalogProvider>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 
@@ -109,7 +109,7 @@ unsafe extern "C" fn register_catalog_fn_wrapper(
     provider: &FFI_CatalogProviderList,
     name: SString,
     catalog: &FFI_CatalogProvider,
-) -> FfiOption<FFI_CatalogProvider> {
+) -> FFI_Option<FFI_CatalogProvider> {
     unsafe {
         let runtime = provider.runtime();
         let inner_provider = provider.inner();
@@ -131,7 +131,7 @@ unsafe extern "C" fn register_catalog_fn_wrapper(
 unsafe extern "C" fn catalog_fn_wrapper(
     provider: &FFI_CatalogProviderList,
     name: SString,
-) -> FfiOption<FFI_CatalogProvider> {
+) -> FFI_Option<FFI_CatalogProvider> {
     unsafe {
         let runtime = provider.runtime();
         let inner_provider = provider.inner();

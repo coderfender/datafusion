@@ -30,7 +30,7 @@ use stabby::vec::Vec as SVec;
 use crate::arrow_wrappers::WrappedSchema;
 use crate::physical_expr::partitioning::FFI_Partitioning;
 use crate::physical_expr::sort::FFI_PhysicalSortExpr;
-use crate::util::FfiOption;
+use crate::util::FFI_Option;
 
 /// A stable struct for sharing [`PlanProperties`] across FFI boundaries.
 #[repr(C)]
@@ -40,14 +40,14 @@ pub struct FFI_PlanProperties {
     pub output_partitioning: unsafe extern "C" fn(plan: &Self) -> FFI_Partitioning,
 
     /// Return the emission type of the plan.
-    pub emission_type: unsafe extern "C" fn(plan: &Self) -> FfiEmissionType,
+    pub emission_type: unsafe extern "C" fn(plan: &Self) -> FFI_EmissionType,
 
     /// Indicate boundedness of the plan and its memory requirements.
     pub boundedness: unsafe extern "C" fn(plan: &Self) -> FFI_Boundedness,
 
     /// The output ordering of the plan.
     pub output_ordering:
-        unsafe extern "C" fn(plan: &Self) -> FfiOption<SVec<FFI_PhysicalSortExpr>>,
+        unsafe extern "C" fn(plan: &Self) -> FFI_Option<SVec<FFI_PhysicalSortExpr>>,
 
     /// Return the schema of the plan.
     pub schema: unsafe extern "C" fn(plan: &Self) -> WrappedSchema,
@@ -84,7 +84,7 @@ unsafe extern "C" fn output_partitioning_fn_wrapper(
 
 unsafe extern "C" fn emission_type_fn_wrapper(
     properties: &FFI_PlanProperties,
-) -> FfiEmissionType {
+) -> FFI_EmissionType {
     properties.inner().emission_type.into()
 }
 
@@ -96,7 +96,7 @@ unsafe extern "C" fn boundedness_fn_wrapper(
 
 unsafe extern "C" fn output_ordering_fn_wrapper(
     properties: &FFI_PlanProperties,
-) -> FfiOption<SVec<FFI_PhysicalSortExpr>> {
+) -> FFI_Option<SVec<FFI_PhysicalSortExpr>> {
     let ordering: Option<SVec<FFI_PhysicalSortExpr>> =
         properties.inner().output_ordering().map(|lex_ordering| {
             let vec_ordering: Vec<PhysicalSortExpr> = lex_ordering.clone().into();
@@ -229,30 +229,31 @@ impl From<FFI_Boundedness> for Boundedness {
 }
 
 /// FFI safe version of [`EmissionType`].
+#[expect(non_camel_case_types)]
 #[repr(u8)]
 #[derive(Clone)]
-pub enum FfiEmissionType {
+pub enum FFI_EmissionType {
     Incremental,
     Final,
     Both,
 }
 
-impl From<EmissionType> for FfiEmissionType {
+impl From<EmissionType> for FFI_EmissionType {
     fn from(value: EmissionType) -> Self {
         match value {
-            EmissionType::Incremental => FfiEmissionType::Incremental,
-            EmissionType::Final => FfiEmissionType::Final,
-            EmissionType::Both => FfiEmissionType::Both,
+            EmissionType::Incremental => FFI_EmissionType::Incremental,
+            EmissionType::Final => FFI_EmissionType::Final,
+            EmissionType::Both => FFI_EmissionType::Both,
         }
     }
 }
 
-impl From<FfiEmissionType> for EmissionType {
-    fn from(value: FfiEmissionType) -> Self {
+impl From<FFI_EmissionType> for EmissionType {
+    fn from(value: FFI_EmissionType) -> Self {
         match value {
-            FfiEmissionType::Incremental => EmissionType::Incremental,
-            FfiEmissionType::Final => EmissionType::Final,
-            FfiEmissionType::Both => EmissionType::Both,
+            FFI_EmissionType::Incremental => EmissionType::Incremental,
+            FFI_EmissionType::Final => EmissionType::Final,
+            FFI_EmissionType::Both => EmissionType::Both,
         }
     }
 }

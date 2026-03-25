@@ -44,8 +44,8 @@ use crate::expr::columnar_value::FFI_ColumnarValue;
 use crate::util::{
     FFIResult, rvec_wrapped_to_vec_datatype, vec_datatype_to_rvec_wrapped,
 };
-use crate::volatility::FfiVolatility;
-use crate::{df_result, rresult, rresult_return};
+use crate::volatility::FFI_Volatility;
+use crate::{df_result, sresult, sresult_return};
 
 pub mod return_type_args;
 
@@ -60,7 +60,7 @@ pub struct FFI_ScalarUDF {
     pub aliases: SVec<SString>,
 
     /// FFI equivalent to the `volatility` of a [`ScalarUDF`]
-    pub volatility: FfiVolatility,
+    pub volatility: FFI_Volatility,
 
     /// Determines the return info of the underlying [`ScalarUDF`].
     pub return_field_from_args: unsafe extern "C" fn(
@@ -126,7 +126,7 @@ unsafe extern "C" fn return_field_from_args_fn_wrapper(
     udf: &FFI_ScalarUDF,
     args: FFI_ReturnFieldArgs,
 ) -> FFIResult<WrappedSchema> {
-    let args: ForeignReturnFieldArgsOwned = rresult_return!((&args).try_into());
+    let args: ForeignReturnFieldArgsOwned = sresult_return!((&args).try_into());
     let args_ref: ForeignReturnFieldArgs = (&args).into();
 
     let return_type = udf
@@ -135,26 +135,26 @@ unsafe extern "C" fn return_field_from_args_fn_wrapper(
         .and_then(|f| FFI_ArrowSchema::try_from(&f).map_err(DataFusionError::from))
         .map(WrappedSchema);
 
-    rresult!(return_type)
+    sresult!(return_type)
 }
 
 unsafe extern "C" fn coerce_types_fn_wrapper(
     udf: &FFI_ScalarUDF,
     arg_types: SVec<WrappedSchema>,
 ) -> FFIResult<SVec<WrappedSchema>> {
-    let arg_types = rresult_return!(rvec_wrapped_to_vec_datatype(&arg_types));
+    let arg_types = sresult_return!(rvec_wrapped_to_vec_datatype(&arg_types));
 
     let arg_fields = arg_types
         .iter()
         .map(|dt| Arc::new(Field::new("f", dt.clone(), true)))
         .collect::<Vec<_>>();
     let return_types =
-        rresult_return!(fields_with_udf(&arg_fields, udf.inner().as_ref()))
+        sresult_return!(fields_with_udf(&arg_fields, udf.inner().as_ref()))
             .into_iter()
             .map(|f| f.data_type().to_owned())
             .collect::<Vec<_>>();
 
-    rresult!(vec_datatype_to_rvec_wrapped(&return_types))
+    sresult!(vec_datatype_to_rvec_wrapped(&return_types))
 }
 
 unsafe extern "C" fn invoke_with_args_fn_wrapper(
@@ -174,8 +174,8 @@ unsafe extern "C" fn invoke_with_args_fn_wrapper(
             })
             .collect::<std::result::Result<_, _>>();
 
-        let args = rresult_return!(args);
-        let return_field = rresult_return!(Field::try_from(&return_field.0)).into();
+        let args = sresult_return!(args);
+        let return_field = sresult_return!(Field::try_from(&return_field.0)).into();
 
         let arg_fields = arg_fields
             .into_iter()
@@ -185,8 +185,8 @@ unsafe extern "C" fn invoke_with_args_fn_wrapper(
                     .map_err(DataFusionError::from)
             })
             .collect::<Result<Vec<FieldRef>>>();
-        let arg_fields = rresult_return!(arg_fields);
-        let config_options = rresult_return!(ConfigOptions::try_from(config_options));
+        let arg_fields = sresult_return!(arg_fields);
+        let config_options = sresult_return!(ConfigOptions::try_from(config_options));
         let config_options = Arc::new(config_options);
 
         let args = ScalarFunctionArgs {
@@ -197,7 +197,7 @@ unsafe extern "C" fn invoke_with_args_fn_wrapper(
             config_options,
         };
 
-        rresult!(
+        sresult!(
             udf.inner()
                 .invoke_with_args(args)
                 .and_then(FFI_ColumnarValue::try_from)

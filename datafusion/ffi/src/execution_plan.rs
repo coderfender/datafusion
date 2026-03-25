@@ -34,8 +34,8 @@ use crate::config::FFI_ConfigOptions;
 use crate::execution::FFI_TaskContext;
 use crate::plan_properties::FFI_PlanProperties;
 use crate::record_batch_stream::FFI_RecordBatchStream;
-use crate::util::{FFIResult, FfiOption};
-use crate::{df_result, rresult, rresult_return};
+use crate::util::{FFI_Option, FFIResult};
+use crate::{df_result, sresult, sresult_return};
 
 /// A stable struct for sharing a [`ExecutionPlan`] across FFI boundaries.
 #[repr(C)]
@@ -66,7 +66,7 @@ pub struct FFI_ExecutionPlan {
         target_partitions: usize,
         config: FFI_ConfigOptions,
     )
-        -> FFIResult<FfiOption<FFI_ExecutionPlan>>,
+        -> FFIResult<FFI_Option<FFI_ExecutionPlan>>,
 
     /// Used to create a clone on the provider of the execution plan. This should
     /// only need to be called by the receiver of the plan.
@@ -114,16 +114,12 @@ unsafe extern "C" fn properties_fn_wrapper(
 unsafe extern "C" fn children_fn_wrapper(
     plan: &FFI_ExecutionPlan,
 ) -> SVec<FFI_ExecutionPlan> {
-    unsafe {
-        let private_data = plan.private_data as *const ExecutionPlanPrivateData;
-        let plan = &(*private_data).plan;
-        let runtime = &(*private_data).runtime;
-
-        plan.children()
-            .into_iter()
-            .map(|child| FFI_ExecutionPlan::new(Arc::clone(child), runtime.clone()))
-            .collect()
-    }
+    let runtime = plan.runtime();
+    plan.inner()
+        .children()
+        .into_iter()
+        .map(|child| FFI_ExecutionPlan::new(Arc::clone(child), runtime.clone()))
+        .collect()
 }
 
 unsafe extern "C" fn with_new_children_fn_wrapper(
@@ -138,10 +134,10 @@ unsafe extern "C" fn with_new_children_fn_wrapper(
         .map(<Arc<dyn ExecutionPlan>>::try_from)
         .collect();
 
-    let children = rresult_return!(children);
-    let new_plan = rresult_return!(inner_plan.with_new_children(children));
+    let children = sresult_return!(children);
+    let new_plan = sresult_return!(inner_plan.with_new_children(children));
 
-    crate::ffi_option::FfiResult::Ok(FFI_ExecutionPlan::new(new_plan, runtime))
+    crate::ffi_option::FFI_Result::Ok(FFI_ExecutionPlan::new(new_plan, runtime))
 }
 
 unsafe extern "C" fn execute_fn_wrapper(
@@ -155,7 +151,7 @@ unsafe extern "C" fn execute_fn_wrapper(
 
     let _runtime_guard = runtime.as_ref().map(|rt| rt.enter());
 
-    rresult!(
+    sresult!(
         plan.execute(partition, ctx)
             .map(|rbs| FFI_RecordBatchStream::new(rbs, runtime))
     )
@@ -165,13 +161,13 @@ unsafe extern "C" fn repartitioned_fn_wrapper(
     plan: &FFI_ExecutionPlan,
     target_partitions: usize,
     config: FFI_ConfigOptions,
-) -> FFIResult<FfiOption<FFI_ExecutionPlan>> {
+) -> FFIResult<FFI_Option<FFI_ExecutionPlan>> {
     let maybe_config: Result<ConfigOptions, DataFusionError> = config.try_into();
-    let config = rresult_return!(maybe_config);
+    let config = sresult_return!(maybe_config);
     let runtime = plan.runtime();
     let plan = plan.inner();
 
-    rresult!(
+    sresult!(
         plan.repartitioned(target_partitions, &config)
             .map(|maybe_plan| maybe_plan
                 .map(|plan| FFI_ExecutionPlan::new(plan, runtime))

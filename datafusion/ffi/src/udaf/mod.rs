@@ -43,12 +43,12 @@ use std::sync::Arc;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
-    FFIResult, FfiOption, FfiResult, rvec_wrapped_to_vec_datatype,
+    FFI_Option, FFI_Result, FFIResult, rvec_wrapped_to_vec_datatype,
     rvec_wrapped_to_vec_fieldref, vec_datatype_to_rvec_wrapped,
     vec_fieldref_to_rvec_wrapped,
 };
-use crate::volatility::FfiVolatility;
-use crate::{df_result, rresult, rresult_return};
+use crate::volatility::FFI_Volatility;
+use crate::{df_result, sresult, sresult_return};
 
 mod accumulator;
 mod accumulator_args;
@@ -65,7 +65,7 @@ pub struct FFI_AggregateUDF {
     pub aliases: SVec<SString>,
 
     /// FFI equivalent to the `volatility` of a [`AggregateUDF`]
-    pub volatility: FfiVolatility,
+    pub volatility: FFI_Volatility,
 
     /// Determines the return field of the underlying [`AggregateUDF`] based on the
     /// argument fields.
@@ -116,7 +116,7 @@ pub struct FFI_AggregateUDF {
         unsafe extern "C" fn(
             udaf: &FFI_AggregateUDF,
             beneficial_ordering: bool,
-        ) -> FFIResult<FfiOption<FFI_AggregateUDF>>,
+        ) -> FFIResult<FFI_Option<FFI_AggregateUDF>>,
 
     /// FFI equivalent to [`AggregateUDF::order_sensitivity`]
     pub order_sensitivity:
@@ -171,7 +171,7 @@ unsafe extern "C" fn return_field_fn_wrapper(
     unsafe {
         let udaf = udaf.inner();
 
-        let arg_fields = rresult_return!(rvec_wrapped_to_vec_fieldref(&arg_fields));
+        let arg_fields = sresult_return!(rvec_wrapped_to_vec_fieldref(&arg_fields));
 
         let return_field = udaf
             .return_field(&arg_fields)
@@ -180,7 +180,7 @@ unsafe extern "C" fn return_field_fn_wrapper(
             })
             .map(WrappedSchema);
 
-        rresult!(return_field)
+        sresult!(return_field)
     }
 }
 
@@ -191,9 +191,9 @@ unsafe extern "C" fn accumulator_fn_wrapper(
     unsafe {
         let udaf = udaf.inner();
 
-        let accumulator_args = &rresult_return!(ForeignAccumulatorArgs::try_from(args));
+        let accumulator_args = &sresult_return!(ForeignAccumulatorArgs::try_from(args));
 
-        rresult!(
+        sresult!(
             udaf.accumulator(accumulator_args.into())
                 .map(FFI_Accumulator::from)
         )
@@ -207,9 +207,9 @@ unsafe extern "C" fn create_sliding_accumulator_fn_wrapper(
     unsafe {
         let udaf = udaf.inner();
 
-        let accumulator_args = &rresult_return!(ForeignAccumulatorArgs::try_from(args));
+        let accumulator_args = &sresult_return!(ForeignAccumulatorArgs::try_from(args));
 
-        rresult!(
+        sresult!(
             udaf.create_sliding_accumulator(accumulator_args.into())
                 .map(FFI_Accumulator::from)
         )
@@ -223,9 +223,9 @@ unsafe extern "C" fn create_groups_accumulator_fn_wrapper(
     unsafe {
         let udaf = udaf.inner();
 
-        let accumulator_args = &rresult_return!(ForeignAccumulatorArgs::try_from(args));
+        let accumulator_args = &sresult_return!(ForeignAccumulatorArgs::try_from(args));
 
-        rresult!(
+        sresult!(
             udaf.create_groups_accumulator(accumulator_args.into())
                 .map(FFI_GroupsAccumulator::from)
         )
@@ -251,12 +251,12 @@ unsafe extern "C" fn groups_accumulator_supported_fn_wrapper(
 unsafe extern "C" fn with_beneficial_ordering_fn_wrapper(
     udaf: &FFI_AggregateUDF,
     beneficial_ordering: bool,
-) -> FFIResult<FfiOption<FFI_AggregateUDF>> {
+) -> FFIResult<FFI_Option<FFI_AggregateUDF>> {
     unsafe {
         let udaf = udaf.inner().as_ref().clone();
 
-        let result = rresult_return!(udaf.with_beneficial_ordering(beneficial_ordering));
-        let result = rresult_return!(
+        let result = sresult_return!(udaf.with_beneficial_ordering(beneficial_ordering));
+        let result = sresult_return!(
             result
                 .map(|func| func.with_beneficial_ordering(beneficial_ordering))
                 .transpose()
@@ -264,7 +264,7 @@ unsafe extern "C" fn with_beneficial_ordering_fn_wrapper(
         .flatten()
         .map(|func| FFI_AggregateUDF::from(Arc::new(func)));
 
-        FfiResult::Ok(result.into())
+        FFI_Result::Ok(result.into())
     }
 }
 
@@ -279,10 +279,10 @@ unsafe extern "C" fn state_fields_fn_wrapper(
     unsafe {
         let udaf = udaf.inner();
 
-        let input_fields = &rresult_return!(rvec_wrapped_to_vec_fieldref(&input_fields));
-        let return_field = rresult_return!(Field::try_from(&return_field.0)).into();
+        let input_fields = &sresult_return!(rvec_wrapped_to_vec_fieldref(&input_fields));
+        let return_field = sresult_return!(Field::try_from(&return_field.0)).into();
 
-        let ordering_fields = &rresult_return!(
+        let ordering_fields = &sresult_return!(
             ordering_fields
                 .into_iter()
                 .map(|field_bytes| datafusion_proto_common::Field::decode(
@@ -292,7 +292,7 @@ unsafe extern "C" fn state_fields_fn_wrapper(
         );
 
         let ordering_fields =
-            &rresult_return!(parse_proto_fields_to_fields(ordering_fields))
+            &sresult_return!(parse_proto_fields_to_fields(ordering_fields))
                 .into_iter()
                 .map(Arc::new)
                 .collect::<Vec<_>>();
@@ -305,8 +305,8 @@ unsafe extern "C" fn state_fields_fn_wrapper(
             is_distinct,
         };
 
-        let state_fields = rresult_return!(udaf.state_fields(args));
-        let state_fields = rresult_return!(
+        let state_fields = sresult_return!(udaf.state_fields(args));
+        let state_fields = sresult_return!(
             state_fields
                 .iter()
                 .map(|f| f.as_ref())
@@ -318,7 +318,7 @@ unsafe extern "C" fn state_fields_fn_wrapper(
         .map(|field| field.encode_to_vec().into_iter().collect())
         .collect();
 
-        FfiResult::Ok(state_fields)
+        FFI_Result::Ok(state_fields)
     }
 }
 
@@ -335,19 +335,19 @@ unsafe extern "C" fn coerce_types_fn_wrapper(
     unsafe {
         let udaf = udaf.inner();
 
-        let arg_types = rresult_return!(rvec_wrapped_to_vec_datatype(&arg_types));
+        let arg_types = sresult_return!(rvec_wrapped_to_vec_datatype(&arg_types));
 
         let arg_fields = arg_types
             .iter()
             .map(|dt| Field::new("f", dt.clone(), true))
             .map(Arc::new)
             .collect::<Vec<_>>();
-        let return_types = rresult_return!(fields_with_udf(&arg_fields, udaf.as_ref()))
+        let return_types = sresult_return!(fields_with_udf(&arg_fields, udaf.as_ref()))
             .into_iter()
             .map(|f| f.data_type().to_owned())
             .collect::<Vec<_>>();
 
-        rresult!(vec_datatype_to_rvec_wrapped(&return_types))
+        sresult!(vec_datatype_to_rvec_wrapped(&return_types))
     }
 }
 

@@ -43,12 +43,12 @@ mod range;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
-    FFIResult, FfiOption, FfiResult, rvec_wrapped_to_vec_datatype,
+    FFI_Option, FFI_Result, FFIResult, rvec_wrapped_to_vec_datatype,
     rvec_wrapped_to_vec_fieldref, vec_datatype_to_rvec_wrapped,
     vec_fieldref_to_rvec_wrapped,
 };
-use crate::volatility::FfiVolatility;
-use crate::{df_result, rresult, rresult_return};
+use crate::volatility::FFI_Volatility;
+use crate::{df_result, sresult, sresult_return};
 
 /// A stable struct for sharing a [`WindowUDF`] across FFI boundaries.
 #[repr(C)]
@@ -61,7 +61,7 @@ pub struct FFI_WindowUDF {
     pub aliases: SVec<SString>,
 
     /// FFI equivalent to the `volatility` of a [`WindowUDF`]
-    pub volatility: FfiVolatility,
+    pub volatility: FFI_Volatility,
 
     pub partition_evaluator: unsafe extern "C" fn(
         udwf: &Self,
@@ -84,7 +84,7 @@ pub struct FFI_WindowUDF {
         arg_types: SVec<WrappedSchema>,
     ) -> FFIResult<SVec<WrappedSchema>>,
 
-    pub sort_options: FfiOption<FFI_SortOptions>,
+    pub sort_options: FFI_Option<FFI_SortOptions>,
 
     /// Used to create a clone on the provider of the udf. This should
     /// only need to be called by the receiver of the udf.
@@ -126,12 +126,12 @@ unsafe extern "C" fn partition_evaluator_fn_wrapper(
     unsafe {
         let inner = udwf.inner();
 
-        let args = rresult_return!(ForeignPartitionEvaluatorArgs::try_from(args));
+        let args = sresult_return!(ForeignPartitionEvaluatorArgs::try_from(args));
 
         let evaluator =
-            rresult_return!(inner.partition_evaluator_factory((&args).into()));
+            sresult_return!(inner.partition_evaluator_factory((&args).into()));
 
-        FfiResult::Ok(evaluator.into())
+        FFI_Result::Ok(evaluator.into())
     }
 }
 
@@ -143,16 +143,16 @@ unsafe extern "C" fn field_fn_wrapper(
     unsafe {
         let inner = udwf.inner();
 
-        let input_fields = rresult_return!(rvec_wrapped_to_vec_fieldref(&input_fields));
+        let input_fields = sresult_return!(rvec_wrapped_to_vec_fieldref(&input_fields));
 
-        let field = rresult_return!(inner.field(WindowUDFFieldArgs::new(
+        let field = sresult_return!(inner.field(WindowUDFFieldArgs::new(
             &input_fields,
             display_name.as_str()
         )));
 
         let schema = Arc::new(Schema::new(vec![field]));
 
-        FfiResult::Ok(WrappedSchema::from(schema))
+        FFI_Result::Ok(WrappedSchema::from(schema))
     }
 }
 
@@ -163,19 +163,19 @@ unsafe extern "C" fn coerce_types_fn_wrapper(
     unsafe {
         let inner = udwf.inner();
 
-        let arg_fields = rresult_return!(rvec_wrapped_to_vec_datatype(&arg_types))
+        let arg_fields = sresult_return!(rvec_wrapped_to_vec_datatype(&arg_types))
             .into_iter()
             .map(|dt| Field::new("f", dt, false))
             .map(Arc::new)
             .collect::<Vec<_>>();
 
-        let return_fields = rresult_return!(fields_with_udf(&arg_fields, inner.as_ref()));
+        let return_fields = sresult_return!(fields_with_udf(&arg_fields, inner.as_ref()));
         let return_types = return_fields
             .into_iter()
             .map(|f| f.data_type().to_owned())
             .collect::<Vec<_>>();
 
-        rresult!(vec_datatype_to_rvec_wrapped(&return_types))
+        sresult!(vec_datatype_to_rvec_wrapped(&return_types))
     }
 }
 

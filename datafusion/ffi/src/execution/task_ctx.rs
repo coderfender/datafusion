@@ -32,7 +32,7 @@ use crate::session::config::FFI_SessionConfig;
 use crate::udaf::FFI_AggregateUDF;
 use crate::udf::FFI_ScalarUDF;
 use crate::udwf::FFI_WindowUDF;
-use crate::util::FfiOption;
+use crate::util::FFI_Option;
 
 /// A stable struct for sharing [`TaskContext`] across FFI boundaries.
 #[repr(C)]
@@ -42,7 +42,7 @@ pub struct FFI_TaskContext {
     pub session_id: unsafe extern "C" fn(&Self) -> SString,
 
     /// Return the task ID.
-    pub task_id: unsafe extern "C" fn(&Self) -> FfiOption<SString>,
+    pub task_id: unsafe extern "C" fn(&Self) -> FFI_Option<SString>,
 
     /// Return the session configuration.
     pub session_config: unsafe extern "C" fn(&Self) -> FFI_SessionConfig,
@@ -90,7 +90,7 @@ unsafe extern "C" fn session_id_fn_wrapper(ctx: &FFI_TaskContext) -> SString {
     }
 }
 
-unsafe extern "C" fn task_id_fn_wrapper(ctx: &FFI_TaskContext) -> FfiOption<SString> {
+unsafe extern "C" fn task_id_fn_wrapper(ctx: &FFI_TaskContext) -> FFI_Option<SString> {
     unsafe {
         let ctx = ctx.inner();
         ctx.task_id().map(|s| s.as_str().into()).into()

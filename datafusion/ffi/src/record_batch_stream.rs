@@ -28,8 +28,8 @@ use futures::{Stream, TryStreamExt};
 use tokio::runtime::Handle;
 
 use crate::arrow_wrappers::{WrappedArray, WrappedSchema};
-use crate::rresult;
-use crate::util::{FFIResult, FfiOption, FfiResult};
+use crate::sresult;
+use crate::util::{FFI_Option, FFI_Result, FFIResult};
 
 /// A stable struct for sharing [`RecordBatchStream`] across FFI boundaries.
 /// We use the async-ffi crate for handling async calls across libraries.
@@ -42,7 +42,7 @@ pub struct FFI_RecordBatchStream {
         stream: &Self,
         cx: &mut FfiContext,
     )
-        -> FfiPoll<FfiOption<FFIResult<WrappedArray>>>,
+        -> FfiPoll<FFI_Option<FFIResult<WrappedArray>>>,
 
     /// Return the schema of the record batch
     pub schema: unsafe extern "C" fn(stream: &Self) -> WrappedSchema,
@@ -107,7 +107,7 @@ pub(crate) fn record_batch_to_wrapped_array(
 ) -> FFIResult<WrappedArray> {
     let schema = WrappedSchema::from(record_batch.schema());
     let struct_array = StructArray::from(record_batch);
-    rresult!(
+    sresult!(
         to_ffi(&struct_array.to_data())
             .map(|(array, _schema)| WrappedArray { array, schema })
     )
@@ -116,20 +116,20 @@ pub(crate) fn record_batch_to_wrapped_array(
 // probably want to use pub unsafe fn from_ffi(array: FFI_ArrowArray, schema: &FFI_ArrowSchema) -> Result<ArrayData> {
 fn maybe_record_batch_to_wrapped_stream(
     record_batch: Option<Result<RecordBatch>>,
-) -> FfiOption<FFIResult<WrappedArray>> {
+) -> FFI_Option<FFIResult<WrappedArray>> {
     match record_batch {
         Some(Ok(record_batch)) => {
-            FfiOption::Some(record_batch_to_wrapped_array(record_batch))
+            FFI_Option::Some(record_batch_to_wrapped_array(record_batch))
         }
-        Some(Err(e)) => FfiOption::Some(FfiResult::Err(e.to_string().into())),
-        None => FfiOption::None,
+        Some(Err(e)) => FFI_Option::Some(FFI_Result::Err(e.to_string().into())),
+        None => FFI_Option::None,
     }
 }
 
 unsafe extern "C" fn poll_next_fn_wrapper(
     stream: &FFI_RecordBatchStream,
     cx: &mut FfiContext,
-) -> FfiPoll<FfiOption<FFIResult<WrappedArray>>> {
+) -> FfiPoll<FFI_Option<FFIResult<WrappedArray>>> {
     unsafe {
         let private_data = stream.private_data as *mut RecordBatchStreamPrivateData;
         let stream = &mut (*private_data).rbs;
@@ -171,7 +171,7 @@ pub(crate) fn wrapped_array_to_record_batch(array: WrappedArray) -> Result<Recor
 }
 
 fn maybe_wrapped_array_to_record_batch(
-    array: FfiOption<FFIResult<WrappedArray>>,
+    array: FFI_Option<FFIResult<WrappedArray>>,
 ) -> Option<Result<RecordBatch>> {
     let array: Option<FFIResult<WrappedArray>> = array.into();
     match array {

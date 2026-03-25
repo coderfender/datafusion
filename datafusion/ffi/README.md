@@ -65,7 +65,7 @@ to work across Rust libraries. In general, you can use Rust's [FFI] to
 operate across different programming languages, but that is not the design
 intent of this crate. Instead, we are using external crates that provide
 stable interfaces that closely mirror the Rust native approach. To learn more
-about this approach see the [abi_stable] and [async-ffi] crates.
+about this approach see the [stabby] and [async-ffi] crates.
 
 If you have a library in another language that you wish to interface to
 DataFusion the recommendation is to create a Rust wrapper crate to interface
@@ -197,7 +197,7 @@ and it is easy to implement on any struct that implements `Session`.
 [api docs]: http://docs.rs/datafusion-ffi/latest
 [rust abi]: https://doc.rust-lang.org/reference/abi.html
 [ffi]: https://doc.rust-lang.org/nomicon/ffi.html
-[abi_stable]: https://crates.io/crates/abi_stable
+[stabby]: https://crates.io/crates/stabby
 [async-ffi]: https://crates.io/crates/async-ffi
 [bindgen]: https://crates.io/crates/bindgen
 [`datafusion-python`]: https://datafusion.apache.org/python/

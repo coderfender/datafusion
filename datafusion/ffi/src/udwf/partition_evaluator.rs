@@ -31,8 +31,8 @@ use stabby::vec::Vec as SVec;
 
 use super::range::FFI_Range;
 use crate::arrow_wrappers::WrappedArray;
-use crate::util::{FFIResult, FfiResult};
-use crate::{df_result, rresult, rresult_return};
+use crate::util::{FFI_Result, FFIResult};
+use crate::{df_result, sresult, sresult_return};
 
 /// A stable struct for sharing [`PartitionEvaluator`] across FFI boundaries.
 /// For an explanation of each field, see the corresponding function
@@ -118,7 +118,7 @@ unsafe extern "C" fn evaluate_all_fn_wrapper(
             .into_iter()
             .map(|v| v.try_into().map_err(DataFusionError::from))
             .collect::<Result<Vec<ArrayRef>>>();
-        let values_arrays = rresult_return!(values_arrays);
+        let values_arrays = sresult_return!(values_arrays);
 
         let return_array =
             inner
@@ -127,7 +127,7 @@ unsafe extern "C" fn evaluate_all_fn_wrapper(
                     WrappedArray::try_from(&array).map_err(DataFusionError::from)
                 });
 
-        rresult!(return_array)
+        sresult!(return_array)
     }
 }
 
@@ -143,16 +143,16 @@ unsafe extern "C" fn evaluate_fn_wrapper(
             .into_iter()
             .map(|v| v.try_into().map_err(DataFusionError::from))
             .collect::<Result<Vec<ArrayRef>>>();
-        let values_arrays = rresult_return!(values_arrays);
+        let values_arrays = sresult_return!(values_arrays);
 
         // let return_array = (inner.evaluate(&values_arrays, &range.into()));
         // .and_then(|array| WrappedArray::try_from(&array).map_err(DataFusionError::from));
         let scalar_result =
-            rresult_return!(inner.evaluate(&values_arrays, &range.into()));
+            sresult_return!(inner.evaluate(&values_arrays, &range.into()));
         let proto_result: datafusion_proto::protobuf::ScalarValue =
-            rresult_return!((&scalar_result).try_into());
+            sresult_return!((&scalar_result).try_into());
 
-        FfiResult::Ok(proto_result.encode_to_vec().into_iter().collect())
+        FFI_Result::Ok(proto_result.encode_to_vec().into_iter().collect())
     }
 }
 
@@ -175,7 +175,7 @@ unsafe extern "C" fn evaluate_all_with_rank_fn_wrapper(
                 WrappedArray::try_from(&array).map_err(DataFusionError::from)
             });
 
-        rresult!(return_array)
+        sresult!(return_array)
     }
 }
 
@@ -188,7 +188,7 @@ unsafe extern "C" fn get_range_fn_wrapper(
         let inner = evaluator.inner();
         let range = inner.get_range(idx, n_rows).map(FFI_Range::from);
 
-        rresult!(range)
+        sresult!(range)
     }
 }
 

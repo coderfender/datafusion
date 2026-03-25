@@ -58,8 +58,8 @@ use crate::session::config::FFI_SessionConfig;
 use crate::udaf::FFI_AggregateUDF;
 use crate::udf::FFI_ScalarUDF;
 use crate::udwf::FFI_WindowUDF;
-use crate::util::{FFIResult, FfiResult};
-use crate::{df_result, rresult, rresult_return};
+use crate::util::{FFI_Result, FFIResult};
+use crate::{df_result, sresult, sresult_return};
 
 pub mod config;
 
@@ -170,14 +170,14 @@ unsafe extern "C" fn create_physical_plan_fn_wrapper(
             let session = session.inner();
             let task_ctx = session.task_ctx();
 
-            let logical_plan = rresult_return!(logical_plan_from_bytes(
+            let logical_plan = sresult_return!(logical_plan_from_bytes(
                 logical_plan_serialized.as_slice(),
                 task_ctx.as_ref(),
             ));
 
             let physical_plan = session.create_physical_plan(&logical_plan).await;
 
-            rresult!(physical_plan.map(|plan| FFI_ExecutionPlan::new(plan, runtime)))
+            sresult!(physical_plan.map(|plan| FFI_ExecutionPlan::new(plan, runtime)))
         }
         .into_ffi()
     }
@@ -195,12 +195,12 @@ unsafe extern "C" fn create_physical_expr_fn_wrapper(
     let logical_expr =
         parse_expr(&logical_expr, session.task_ctx().as_ref(), codec.as_ref()).unwrap();
     let schema: SchemaRef = schema.into();
-    let schema: DFSchema = rresult_return!(schema.try_into());
+    let schema: DFSchema = sresult_return!(schema.try_into());
 
     let physical_expr =
-        rresult_return!(session.create_physical_expr(logical_expr, &schema));
+        sresult_return!(session.create_physical_expr(logical_expr, &schema));
 
-    FfiResult::Ok(physical_expr.into())
+    FFI_Result::Ok(physical_expr.into())
 }
 
 unsafe extern "C" fn scalar_functions_fn_wrapper(

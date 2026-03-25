@@ -31,8 +31,8 @@ use tokio::runtime::Handle;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::schema_provider::{FFI_SchemaProvider, ForeignSchemaProvider};
-use crate::util::{FFIResult, FfiOption, FfiResult};
-use crate::{df_result, rresult_return};
+use crate::util::{FFI_Option, FFI_Result, FFIResult};
+use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`CatalogProvider`] across FFI boundaries.
 #[repr(C)]
@@ -43,21 +43,21 @@ pub struct FFI_CatalogProvider {
     pub schema: unsafe extern "C" fn(
         provider: &Self,
         name: SString,
-    ) -> FfiOption<FFI_SchemaProvider>,
+    ) -> FFI_Option<FFI_SchemaProvider>,
 
-    pub register_schema: unsafe extern "C" fn(
-        provider: &Self,
-        name: SString,
-        schema: &FFI_SchemaProvider,
-    )
-        -> FFIResult<FfiOption<FFI_SchemaProvider>>,
+    pub register_schema:
+        unsafe extern "C" fn(
+            provider: &Self,
+            name: SString,
+            schema: &FFI_SchemaProvider,
+        ) -> FFIResult<FFI_Option<FFI_SchemaProvider>>,
 
     pub deregister_schema:
         unsafe extern "C" fn(
             provider: &Self,
             name: SString,
             cascade: bool,
-        ) -> FFIResult<FfiOption<FFI_SchemaProvider>>,
+        ) -> FFIResult<FFI_Option<FFI_SchemaProvider>>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 
@@ -117,7 +117,7 @@ unsafe extern "C" fn schema_names_fn_wrapper(
 unsafe extern "C" fn schema_fn_wrapper(
     provider: &FFI_CatalogProvider,
     name: SString,
-) -> FfiOption<FFI_SchemaProvider> {
+) -> FFI_Option<FFI_SchemaProvider> {
     unsafe {
         let maybe_schema = provider.inner().schema(name.as_str());
         maybe_schema
@@ -136,14 +136,14 @@ unsafe extern "C" fn register_schema_fn_wrapper(
     provider: &FFI_CatalogProvider,
     name: SString,
     schema: &FFI_SchemaProvider,
-) -> FFIResult<FfiOption<FFI_SchemaProvider>> {
+) -> FFIResult<FFI_Option<FFI_SchemaProvider>> {
     unsafe {
         let runtime = provider.runtime();
         let inner_provider = provider.inner();
         let schema: Arc<dyn SchemaProvider + Send> = schema.into();
 
         let returned_schema =
-            rresult_return!(inner_provider.register_schema(name.as_str(), schema))
+            sresult_return!(inner_provider.register_schema(name.as_str(), schema))
                 .map(|schema| {
                     FFI_SchemaProvider::new_with_ffi_codec(
                         schema,
@@ -153,7 +153,7 @@ unsafe extern "C" fn register_schema_fn_wrapper(
                 })
                 .into();
 
-        FfiResult::Ok(returned_schema)
+        FFI_Result::Ok(returned_schema)
     }
 }
 
@@ -161,15 +161,15 @@ unsafe extern "C" fn deregister_schema_fn_wrapper(
     provider: &FFI_CatalogProvider,
     name: SString,
     cascade: bool,
-) -> FFIResult<FfiOption<FFI_SchemaProvider>> {
+) -> FFIResult<FFI_Option<FFI_SchemaProvider>> {
     unsafe {
         let runtime = provider.runtime();
         let inner_provider = provider.inner();
 
         let maybe_schema =
-            rresult_return!(inner_provider.deregister_schema(name.as_str(), cascade));
+            sresult_return!(inner_provider.deregister_schema(name.as_str(), cascade));
 
-        FfiResult::Ok(
+        FFI_Result::Ok(
             maybe_schema
                 .map(|schema| {
                     FFI_SchemaProvider::new_with_ffi_codec(

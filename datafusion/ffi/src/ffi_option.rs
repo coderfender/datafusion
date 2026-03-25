@@ -25,41 +25,41 @@
 /// An FFI-safe option type.
 #[repr(C, u8)]
 #[derive(Debug, Clone)]
-pub enum FfiOption<T> {
+pub enum FFI_Option<T> {
     Some(T),
     None,
 }
 
-impl<T> From<Option<T>> for FfiOption<T> {
+impl<T> From<Option<T>> for FFI_Option<T> {
     fn from(opt: Option<T>) -> Self {
         match opt {
-            Some(v) => FfiOption::Some(v),
-            None => FfiOption::None,
+            Some(v) => FFI_Option::Some(v),
+            None => FFI_Option::None,
         }
     }
 }
 
-impl<T> From<FfiOption<T>> for Option<T> {
-    fn from(opt: FfiOption<T>) -> Self {
+impl<T> From<FFI_Option<T>> for Option<T> {
+    fn from(opt: FFI_Option<T>) -> Self {
         match opt {
-            FfiOption::Some(v) => Some(v),
-            FfiOption::None => None,
+            FFI_Option::Some(v) => Some(v),
+            FFI_Option::None => None,
         }
     }
 }
 
-impl<T> FfiOption<T> {
+impl<T> FFI_Option<T> {
     pub fn as_ref(&self) -> Option<&T> {
         match self {
-            FfiOption::Some(v) => Some(v),
-            FfiOption::None => None,
+            FFI_Option::Some(v) => Some(v),
+            FFI_Option::None => None,
         }
     }
 
-    pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> FfiOption<U> {
+    pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> FFI_Option<U> {
         match self {
-            FfiOption::Some(v) => FfiOption::Some(f(v)),
-            FfiOption::None => FfiOption::None,
+            FFI_Option::Some(v) => FFI_Option::Some(f(v)),
+            FFI_Option::None => FFI_Option::None,
         }
     }
 
@@ -71,49 +71,49 @@ impl<T> FfiOption<T> {
 /// An FFI-safe result type.
 #[repr(C, u8)]
 #[derive(Debug, Clone)]
-pub enum FfiResult<T, E> {
+pub enum FFI_Result<T, E> {
     Ok(T),
     Err(E),
 }
 
-impl<T, E> From<Result<T, E>> for FfiResult<T, E> {
+impl<T, E> From<Result<T, E>> for FFI_Result<T, E> {
     fn from(res: Result<T, E>) -> Self {
         match res {
-            Ok(v) => FfiResult::Ok(v),
-            Err(e) => FfiResult::Err(e),
+            Ok(v) => FFI_Result::Ok(v),
+            Err(e) => FFI_Result::Err(e),
         }
     }
 }
 
-impl<T, E> From<FfiResult<T, E>> for Result<T, E> {
-    fn from(res: FfiResult<T, E>) -> Self {
+impl<T, E> From<FFI_Result<T, E>> for Result<T, E> {
+    fn from(res: FFI_Result<T, E>) -> Self {
         match res {
-            FfiResult::Ok(v) => Ok(v),
-            FfiResult::Err(e) => Err(e),
+            FFI_Result::Ok(v) => Ok(v),
+            FFI_Result::Err(e) => Err(e),
         }
     }
 }
 
-impl<T, E> FfiResult<T, E> {
+impl<T, E> FFI_Result<T, E> {
     pub fn is_ok(&self) -> bool {
-        matches!(self, FfiResult::Ok(_))
+        matches!(self, FFI_Result::Ok(_))
     }
 
     pub fn is_err(&self) -> bool {
-        matches!(self, FfiResult::Err(_))
+        matches!(self, FFI_Result::Err(_))
     }
 
     pub fn unwrap_err(self) -> E {
         match self {
-            FfiResult::Err(e) => e,
-            FfiResult::Ok(_) => panic!("called unwrap_err on Ok"),
+            FFI_Result::Err(e) => e,
+            FFI_Result::Ok(_) => panic!("called unwrap_err on Ok"),
         }
     }
 
-    pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> FfiResult<U, E> {
+    pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> FFI_Result<U, E> {
         match self {
-            FfiResult::Ok(v) => FfiResult::Ok(f(v)),
-            FfiResult::Err(e) => FfiResult::Err(e),
+            FFI_Result::Ok(v) => FFI_Result::Ok(f(v)),
+            FFI_Result::Err(e) => FFI_Result::Err(e),
         }
     }
 
@@ -122,11 +122,11 @@ impl<T, E> FfiResult<T, E> {
     }
 }
 
-impl<T: PartialEq, E: PartialEq> PartialEq for FfiResult<T, E> {
+impl<T: PartialEq, E: PartialEq> PartialEq for FFI_Result<T, E> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (FfiResult::Ok(a), FfiResult::Ok(b)) => a == b,
-            (FfiResult::Err(a), FfiResult::Err(b)) => a == b,
+            (FFI_Result::Ok(a), FFI_Result::Ok(b)) => a == b,
+            (FFI_Result::Err(a), FFI_Result::Err(b)) => a == b,
             _ => false,
         }
     }

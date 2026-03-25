@@ -37,8 +37,8 @@ use tokio::runtime::Handle;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::table_provider::FFI_TableProvider;
-use crate::util::{FFIResult, FfiResult};
-use crate::{df_result, rresult_return};
+use crate::util::{FFI_Result, FFIResult};
+use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing a [`TableFunctionImpl`] across FFI boundaries.
 #[repr(C)]
@@ -96,19 +96,19 @@ unsafe extern "C" fn call_fn_wrapper(
     let udtf_inner = udtf.inner();
 
     let ctx: Arc<TaskContext> =
-        rresult_return!((&udtf.logical_codec.task_ctx_provider).try_into());
+        sresult_return!((&udtf.logical_codec.task_ctx_provider).try_into());
     let codec: Arc<dyn LogicalExtensionCodec> = (&udtf.logical_codec).into();
 
-    let proto_filters = rresult_return!(LogicalExprList::decode(args.as_ref()));
+    let proto_filters = sresult_return!(LogicalExprList::decode(args.as_ref()));
 
-    let args = rresult_return!(parse_exprs(
+    let args = sresult_return!(parse_exprs(
         proto_filters.expr.iter(),
         ctx.as_ref(),
         codec.as_ref()
     ));
 
-    let table_provider = rresult_return!(udtf_inner.call(&args));
-    FfiResult::Ok(FFI_TableProvider::new_with_ffi_codec(
+    let table_provider = sresult_return!(udtf_inner.call(&args));
+    FFI_Result::Ok(FFI_TableProvider::new_with_ffi_codec(
         table_provider,
         false,
         runtime,

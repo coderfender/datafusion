@@ -40,14 +40,14 @@ use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
 
 use super::execution_plan::FFI_ExecutionPlan;
-use super::insert_op::FFiInsertOp;
+use super::insert_op::FFI_InsertOp;
 use crate::arrow_wrappers::WrappedSchema;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::session::{FFI_SessionRef, ForeignSession};
-use crate::table_source::{FFI_TableType, FfiTableProviderFilterPushDown};
-use crate::util::{FFIResult, FfiOption, FfiResult};
-use crate::{df_result, rresult_return};
+use crate::table_source::{FFI_TableProviderFilterPushDown, FFI_TableType};
+use crate::util::{FFI_Option, FFI_Result, FFIResult};
+use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`TableProvider`] across FFI boundaries.
 ///
@@ -108,9 +108,9 @@ pub struct FFI_TableProvider {
     scan: unsafe extern "C" fn(
         provider: &Self,
         session: FFI_SessionRef,
-        projections: FfiOption<SVec<usize>>,
+        projections: FFI_Option<SVec<usize>>,
         filters_serialized: SVec<u8>,
-        limit: FfiOption<usize>,
+        limit: FFI_Option<usize>,
     ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
 
     /// Return the type of table. See [`TableType`] for options.
@@ -123,14 +123,14 @@ pub struct FFI_TableProvider {
         unsafe extern "C" fn(
             provider: &FFI_TableProvider,
             filters_serialized: SVec<u8>,
-        ) -> FFIResult<SVec<FfiTableProviderFilterPushDown>>,
+        ) -> FFIResult<SVec<FFI_TableProviderFilterPushDown>>,
     >,
 
     insert_into: unsafe extern "C" fn(
         provider: &Self,
         session: FFI_SessionRef,
         input: &FFI_ExecutionPlan,
-        insert_op: FFiInsertOp,
+        insert_op: FFI_InsertOp,
     ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
@@ -190,7 +190,7 @@ fn supports_filters_pushdown_internal(
     filters_serialized: &[u8],
     task_ctx: &Arc<TaskContext>,
     codec: &dyn LogicalExtensionCodec,
-) -> Result<SVec<FfiTableProviderFilterPushDown>> {
+) -> Result<SVec<FFI_TableProviderFilterPushDown>> {
     let filters = match filters_serialized.is_empty() {
         true => vec![],
         false => {
@@ -214,9 +214,9 @@ fn supports_filters_pushdown_internal(
 unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
     provider: &FFI_TableProvider,
     filters_serialized: SVec<u8>,
-) -> FFIResult<SVec<FfiTableProviderFilterPushDown>> {
+) -> FFIResult<SVec<FFI_TableProviderFilterPushDown>> {
     let logical_codec: Arc<dyn LogicalExtensionCodec> = (&provider.logical_codec).into();
-    let task_ctx = rresult_return!(<Arc<TaskContext>>::try_from(
+    let task_ctx = sresult_return!(<Arc<TaskContext>>::try_from(
         &provider.logical_codec.task_ctx_provider
     ));
     supports_filters_pushdown_internal(
@@ -232,9 +232,9 @@ unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
 unsafe extern "C" fn scan_fn_wrapper(
     provider: &FFI_TableProvider,
     session: FFI_SessionRef,
-    projections: FfiOption<SVec<usize>>,
+    projections: FFI_Option<SVec<usize>>,
     filters_serialized: SVec<u8>,
-    limit: FfiOption<usize>,
+    limit: FFI_Option<usize>,
 ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
     let task_ctx: Result<Arc<TaskContext>, DataFusionError> =
         (&provider.logical_codec.task_ctx_provider).try_into();
@@ -244,7 +244,7 @@ unsafe extern "C" fn scan_fn_wrapper(
 
     async move {
         let mut foreign_session = None;
-        let session = rresult_return!(
+        let session = sresult_return!(
             session
                 .as_local()
                 .map(Ok::<&(dyn Session + Send + Sync), DataFusionError>)
@@ -254,14 +254,14 @@ unsafe extern "C" fn scan_fn_wrapper(
                 })
         );
 
-        let task_ctx = rresult_return!(task_ctx);
+        let task_ctx = sresult_return!(task_ctx);
         let filters = match filters_serialized.is_empty() {
             true => vec![],
             false => {
                 let proto_filters =
-                    rresult_return!(LogicalExprList::decode(filters_serialized.as_ref()));
+                    sresult_return!(LogicalExprList::decode(filters_serialized.as_ref()));
 
-                rresult_return!(parse_exprs(
+                sresult_return!(parse_exprs(
                     proto_filters.expr.iter(),
                     task_ctx.as_ref(),
                     logical_codec.as_ref(),
@@ -272,13 +272,13 @@ unsafe extern "C" fn scan_fn_wrapper(
         let projections: Option<Vec<usize>> =
             projections.into_option().map(|p| p.into_iter().collect());
 
-        let plan = rresult_return!(
+        let plan = sresult_return!(
             internal_provider
                 .scan(session, projections.as_ref(), &filters, limit.into())
                 .await
         );
 
-        FfiResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
+        FFI_Result::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
     }
     .into_ffi()
 }
@@ -287,7 +287,7 @@ unsafe extern "C" fn insert_into_fn_wrapper(
     provider: &FFI_TableProvider,
     session: FFI_SessionRef,
     input: &FFI_ExecutionPlan,
-    insert_op: FFiInsertOp,
+    insert_op: FFI_InsertOp,
 ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
     let runtime = provider.runtime().clone();
     let internal_provider = Arc::clone(provider.inner());
@@ -295,7 +295,7 @@ unsafe extern "C" fn insert_into_fn_wrapper(
 
     async move {
         let mut foreign_session = None;
-        let session = rresult_return!(
+        let session = sresult_return!(
             session
                 .as_local()
                 .map(Ok::<&(dyn Session + Send + Sync), DataFusionError>)
@@ -305,17 +305,17 @@ unsafe extern "C" fn insert_into_fn_wrapper(
                 })
         );
 
-        let input = rresult_return!(<Arc<dyn ExecutionPlan>>::try_from(&input));
+        let input = sresult_return!(<Arc<dyn ExecutionPlan>>::try_from(&input));
 
         let insert_op = InsertOp::from(insert_op);
 
-        let plan = rresult_return!(
+        let plan = sresult_return!(
             internal_provider
                 .insert_into(session, input, insert_op)
                 .await
         );
 
-        FfiResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
+        FFI_Result::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
     }
     .into_ffi()
 }
@@ -465,7 +465,7 @@ impl TableProvider for ForeignTableProvider {
     ) -> Result<Arc<dyn ExecutionPlan>> {
         let session = FFI_SessionRef::new(session, None, self.0.logical_codec.clone());
 
-        let projections: FfiOption<SVec<usize>> = projection
+        let projections: FFI_Option<SVec<usize>> = projection
             .map(|p| p.iter().map(|v| v.to_owned()).collect())
             .into();
 
@@ -537,7 +537,7 @@ impl TableProvider for ForeignTableProvider {
 
         let rc = Handle::try_current().ok();
         let input = FFI_ExecutionPlan::new(input, rc);
-        let insert_op: FFiInsertOp = insert_op.into();
+        let insert_op: FFI_InsertOp = insert_op.into();
 
         let plan = unsafe {
             let maybe_plan =

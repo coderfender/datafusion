@@ -33,35 +33,36 @@ use tokio::runtime::Handle;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::table_provider::{FFI_TableProvider, ForeignTableProvider};
-use crate::util::{FFIResult, FfiOption, FfiResult};
-use crate::{df_result, rresult_return};
+use crate::util::{FFI_Option, FFI_Result, FFIResult};
+use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`SchemaProvider`] across FFI boundaries.
 #[repr(C)]
 #[derive(Debug)]
 pub struct FFI_SchemaProvider {
-    pub owner_name: FfiOption<SString>,
+    pub owner_name: FFI_Option<SString>,
 
     pub table_names: unsafe extern "C" fn(provider: &Self) -> SVec<SString>,
 
     pub table: unsafe extern "C" fn(
         provider: &Self,
         name: SString,
-    )
-        -> FfiFuture<FFIResult<FfiOption<FFI_TableProvider>>>,
+    ) -> FfiFuture<
+        FFIResult<FFI_Option<FFI_TableProvider>>,
+    >,
 
     pub register_table: unsafe extern "C" fn(
         provider: &Self,
         name: SString,
         table: FFI_TableProvider,
     )
-        -> FFIResult<FfiOption<FFI_TableProvider>>,
+        -> FFIResult<FFI_Option<FFI_TableProvider>>,
 
-    pub deregister_table: unsafe extern "C" fn(
-        provider: &Self,
-        name: SString,
-    )
-        -> FFIResult<FfiOption<FFI_TableProvider>>,
+    pub deregister_table:
+        unsafe extern "C" fn(
+            provider: &Self,
+            name: SString,
+        ) -> FFIResult<FFI_Option<FFI_TableProvider>>,
 
     pub table_exist: unsafe extern "C" fn(provider: &Self, name: SString) -> bool,
 
@@ -125,20 +126,20 @@ unsafe extern "C" fn table_names_fn_wrapper(
 unsafe extern "C" fn table_fn_wrapper(
     provider: &FFI_SchemaProvider,
     name: SString,
-) -> FfiFuture<FFIResult<FfiOption<FFI_TableProvider>>> {
+) -> FfiFuture<FFIResult<FFI_Option<FFI_TableProvider>>> {
     unsafe {
         let runtime = provider.runtime();
         let logical_codec = provider.logical_codec.clone();
         let provider = Arc::clone(provider.inner());
 
         async move {
-            let table = rresult_return!(provider.table(name.as_str()).await)
+            let table = sresult_return!(provider.table(name.as_str()).await)
                 .map(|t| {
                     FFI_TableProvider::new_with_ffi_codec(t, true, runtime, logical_codec)
                 })
                 .into();
 
-            FfiResult::Ok(table)
+            FFI_Result::Ok(table)
         }
         .into_ffi()
     }
@@ -148,7 +149,7 @@ unsafe extern "C" fn register_table_fn_wrapper(
     provider: &FFI_SchemaProvider,
     name: SString,
     table: FFI_TableProvider,
-) -> FFIResult<FfiOption<FFI_TableProvider>> {
+) -> FFIResult<FFI_Option<FFI_TableProvider>> {
     unsafe {
         let runtime = provider.runtime();
         let logical_codec = provider.logical_codec.clone();
@@ -156,30 +157,30 @@ unsafe extern "C" fn register_table_fn_wrapper(
 
         let table = Arc::new(ForeignTableProvider(table));
 
-        let returned_table = rresult_return!(provider.register_table(name.into(), table))
+        let returned_table = sresult_return!(provider.register_table(name.into(), table))
             .map(|t| {
                 FFI_TableProvider::new_with_ffi_codec(t, true, runtime, logical_codec)
             });
 
-        FfiResult::Ok(returned_table.into())
+        FFI_Result::Ok(returned_table.into())
     }
 }
 
 unsafe extern "C" fn deregister_table_fn_wrapper(
     provider: &FFI_SchemaProvider,
     name: SString,
-) -> FFIResult<FfiOption<FFI_TableProvider>> {
+) -> FFIResult<FFI_Option<FFI_TableProvider>> {
     unsafe {
         let runtime = provider.runtime();
         let logical_codec = provider.logical_codec.clone();
         let provider = provider.inner();
 
-        let returned_table = rresult_return!(provider.deregister_table(name.as_str()))
+        let returned_table = sresult_return!(provider.deregister_table(name.as_str()))
             .map(|t| {
                 FFI_TableProvider::new_with_ffi_codec(t, true, runtime, logical_codec)
             });
 
-        FfiResult::Ok(returned_table.into())
+        FFI_Result::Ok(returned_table.into())
     }
 }
 

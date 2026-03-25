@@ -43,8 +43,14 @@ async fn main() -> Result<()> {
         "so"
     };
 
+    let build_type = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    };
+
     let library_path = format!(
-        "../../../../target/debug/{lib_prefix}ffi_example_table_provider.{lib_ext}"
+        "../../../../target/{build_type}/{lib_prefix}ffi_example_table_provider.{lib_ext}"
     );
 
     // Load the library using libloading
