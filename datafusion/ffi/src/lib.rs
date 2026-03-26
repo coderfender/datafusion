@@ -52,6 +52,7 @@ pub mod volatility;
 
 #[cfg(feature = "integration-tests")]
 pub mod tests;
+mod physical_optimizer;
 
 /// Returns the major version of the FFI implementation. If the API evolves,
 /// we use the major version to identify compatibility over the unsafe
