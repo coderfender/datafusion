@@ -214,8 +214,9 @@ impl PhysicalOptimizerRule for ForeignPhysicalOptimizerRule {
         let config_options: FFI_ConfigOptions = config.into();
         let plan = FFI_ExecutionPlan::new(plan, None);
 
-        let optimized_plan =
-            unsafe { df_result!((self.rule.optimize)(&self.rule, &plan, config_options))? };
+        let optimized_plan = unsafe {
+            df_result!((self.rule.optimize)(&self.rule, &plan, config_options))?
+        };
         (&optimized_plan).try_into()
     }
 
