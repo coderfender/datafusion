@@ -60,7 +60,13 @@ fn float_secs_to_micros(val: f64, enable_ansi_mode: bool) -> Result<Option<i64>>
         return Ok(None);
     }
     let micros = val * MICROS_PER_SECOND as f64;
-    if micros.floor() <= i64::MAX as f64 && micros.ceil() >= i64::MIN as f64 {
+
+    // Bounds check for i64 range.
+    // Note on precision: i64::MIN (-2^63) is exactly representable in f64,
+    // but i64::MAX (2^63 - 1) is not - it rounds up to 2^63 (i64::MAX + 1).
+    // We use strict `<` for the upper bound to reject values >= 2^63,
+    // which correctly handles the precision loss edge case.
+    if micros >= i64::MIN as f64 && micros < i64::MAX as f64 {
         Ok(Some(micros as i64))
     } else {
         if enable_ansi_mode {
@@ -250,12 +256,11 @@ impl ScalarUDFImpl for SparkCast {
     }
 
     fn return_field_from_args(&self, args: ReturnFieldArgs) -> Result<FieldRef> {
-        let nullable = args.arg_fields.iter().any(|f| f.is_nullable());
         let return_type = get_target_type_from_scalar_args(
             args.scalar_arguments,
             self.timezone.clone(),
         )?;
-        Ok(Arc::new(Field::new(self.name(), return_type, nullable)))
+        Ok(Arc::new(Field::new(self.name(), return_type, true)))
     }
 
     fn invoke_with_args(&self, args: ScalarFunctionArgs) -> Result<ColumnarValue> {
