@@ -188,6 +188,11 @@ DROP TABLE float_test;
 statement ok
 DROP TABLE float_special;
 
+# Note: Overflow saturation tests (1e19, -1e19) are not included here because
+# DataFusion's timestamp formatter cannot display i64::MAX/MIN microsecond values.
+# The saturation behavior (matching Spark) is verified in unit tests:
+# test_cast_float_overflow_non_ansi_mode and test_cast_float_negative_overflow_non_ansi_mode
+
 #############################
 # ANSI Mode Tests
 #############################

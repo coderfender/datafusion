@@ -42,26 +42,36 @@ fn secs_to_micros(secs: i64) -> i64 {
 }
 
 /// Convert float seconds to microseconds
-/// Returns None for NaN/Infinity/Overflow in non-ANSI mode, error in ANSI mode
+/// Returns None for NaN/Infinity in non-ANSI mode, error in ANSI mode
+/// Saturates to i64::MAX/MIN for overflow
 #[inline]
 fn float_secs_to_micros(val: f64, enable_ansi_mode: bool) -> Result<Option<i64>> {
     if val.is_nan() || val.is_infinite() {
         if enable_ansi_mode {
-            return exec_err!(
-                "Cannot cast {} to TIMESTAMP",
-                if val.is_nan() { "NaN" } else { "Infinity" }
-            );
+            let display_val = if val.is_nan() {
+                "NaN"
+            } else if val.is_sign_positive() {
+                "Infinity"
+            } else {
+                "-Infinity"
+            };
+            return exec_err!("Cannot cast {} to TIMESTAMP", display_val);
         }
         return Ok(None);
     }
     let micros = val * MICROS_PER_SECOND as f64;
-    if micros >= i64::MIN as f64 && micros <= i64::MAX as f64 {
+    if micros.floor() <= i64::MAX as f64 && micros.ceil() >= i64::MIN as f64 {
         Ok(Some(micros as i64))
     } else {
         if enable_ansi_mode {
             return exec_err!("Overflow casting {} to TIMESTAMP", val);
         }
-        Ok(None)
+        // Saturate to i64::MAX or i64::MIN like Spark does for overflow
+        if micros.is_sign_negative() {
+            Ok(Some(i64::MIN))
+        } else {
+            Ok(Some(i64::MAX))
+        }
     }
 }
 
@@ -75,10 +85,11 @@ fn float_secs_to_micros(val: f64, enable_ansi_mode: bool) -> Result<Option<i64>>
 /// ```
 ///
 /// # Currently supported conversions
-/// - Int8/Int16/Int32/Int64 -> Timestamp (target_type = 'timestamp')
+/// - Int8/Int16/Int32/Int64/Float32/Float64 -> Timestamp (target_type = 'timestamp')
 ///
 /// The integer value is interpreted as seconds since the Unix epoch (1970-01-01 00:00:00 UTC)
-/// and converted to a timestamp with microsecond precision (matches spark's spec)
+/// and converted to a timestamp with microsecond precision (matches spark's spec). Same is the case
+/// with Float but with higher precision to support micro / nanoseconds.
 ///
 /// # Overflow behavior
 /// Uses saturating multiplication to handle overflow - values that would overflow
@@ -905,7 +916,7 @@ mod tests {
 
     #[test]
     fn test_cast_float_overflow_non_ansi_mode() {
-        // Value too large to fit in i64 microseconds - should return NULL in non-ANSI mode
+        // Value too large to fit in i64 microseconds - should saturate to i64::MAX like Spark
         let cast = SparkCast::new();
         let large_value = 1e19; // Way too large for i64 microseconds
         let args = make_args_with_ansi_mode(
@@ -914,7 +925,23 @@ mod tests {
             false,
         );
         let result = cast.invoke_with_args(args).unwrap();
-        assert_scalar_null(result);
+        // Spark saturates overflow to i64::MAX
+        assert_scalar_timestamp(result, i64::MAX);
+    }
+
+    #[test]
+    fn test_cast_float_negative_overflow_non_ansi_mode() {
+        // Large negative value - should saturate to i64::MIN like Spark
+        let cast = SparkCast::new();
+        let large_value = -1e19; // Way too large negative for i64 microseconds
+        let args = make_args_with_ansi_mode(
+            ColumnarValue::Scalar(ScalarValue::Float64(Some(large_value))),
+            "timestamp",
+            false,
+        );
+        let result = cast.invoke_with_args(args).unwrap();
+        // Spark saturates negative overflow to i64::MIN
+        assert_scalar_timestamp(result, i64::MIN);
     }
 
     #[test]
