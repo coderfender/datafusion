@@ -1789,17 +1789,26 @@ pub(super) fn equal_rows_arr(
 
         let mut is_equal = true;
         for (col_idx, cmp) in comparators.iter().enumerate() {
-            match (null_equality, cmp(left_idx, right_idx)) {
-                (NullEquality::NullEqualsNull, Ordering::Equal) => continue,
-                (NullEquality::NullEqualsNothing, Ordering::Equal) => {
-                    if left_arrays.get(col_idx).unwrap().is_null(left_idx) {
+            let left_arr = left_arrays.get(col_idx).unwrap();
+            let right_arr = right_arrays.get(col_idx).unwrap();
+            let left_null = left_arr.data_type() == &DataType::Null || left_arr.is_null(left_idx);
+            let right_null = right_arr.data_type() == &DataType::Null || right_arr.is_null(right_idx);
+
+            match (null_equality, left_null, right_null) {
+                (NullEquality::NullEqualsNull, true, true) => continue, // Nulls match
+                (NullEquality::NullEqualsNothing, true, _) | (NullEquality::NullEqualsNothing, _, true) => {
+                    is_equal = false; // Nulls never match
+                    break;
+                }
+                (_, true, false) | (_, false, true) => {
+                    is_equal = false; // Different null states
+                    break;
+                }
+                (_, false, false) => {
+                    if cmp(left_idx, right_idx) != Ordering::Equal {
                         is_equal = false;
                         break;
                     }
-                }
-                _ => {
-                    is_equal = false;
-                    break;
                 }
             }
         }
