@@ -2966,7 +2966,8 @@ mod tests {
         assert_eq!(res_right, UInt32Array::from(vec![0, 1, 2, 3]));
 
         // Test with NULLs
-        let left_col = Arc::new(Int32Array::from(vec![Some(1), None, Some(3)])) as ArrayRef;
+        let left_col =
+            Arc::new(Int32Array::from(vec![Some(1), None, Some(3)])) as ArrayRef;
         let right_col =
             Arc::new(Int32Array::from(vec![Some(1), None, Some(4)])) as ArrayRef;
 
