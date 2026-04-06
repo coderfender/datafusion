@@ -53,13 +53,11 @@ use arrow::array::{
     TimestampNanosecondArray, TimestampSecondArray, UInt8Array, UInt16Array,
 };
 use arrow::buffer::{BooleanBuffer, NullBuffer};
-use arrow::compute::kernels::cmp::eq;
 use arrow::compute::{self, take};
 use arrow::datatypes::{
     ArrowNativeType, Field, Schema, SchemaBuilder, UInt32Type, UInt64Type,
 };
-use arrow_ord::cmp::not_distinct;
-use arrow_schema::{ArrowError, DataType, SortOptions, TimeUnit};
+use arrow_schema::{DataType, SortOptions, TimeUnit};
 use datafusion_common::cast::as_boolean_array;
 use datafusion_common::hash_utils::RandomState;
 use datafusion_common::hash_utils::create_hashes;
@@ -68,7 +66,6 @@ use datafusion_common::{
     DataFusionError, JoinSide, JoinType, NullEquality, Result, SharedResult,
     not_impl_err, plan_err,
 };
-use datafusion_expr::Operator;
 use datafusion_expr::interval_arithmetic::Interval;
 use datafusion_physical_expr::expressions::Column;
 use datafusion_physical_expr::utils::collect_columns;
@@ -77,7 +74,6 @@ use datafusion_physical_expr::{
     add_offset_to_physical_sort_exprs,
 };
 
-use datafusion_physical_expr_common::datum::compare_op_for_nested;
 use datafusion_physical_expr_common::utils::evaluate_expressions_to_arrays;
 use futures::future::{BoxFuture, Shared};
 use futures::{FutureExt, ready};
