@@ -43,7 +43,7 @@ pub use crate::joins::{JoinOn, JoinOnRef};
 use arrow::array::{
     Array, ArrowPrimitiveType, BooleanBufferBuilder, NativeAdapter, PrimitiveArray,
     RecordBatch, RecordBatchOptions, UInt32Array, UInt32Builder, UInt64Array,
-    builder::UInt64Builder, downcast_array, new_null_array,
+    builder::UInt64Builder, downcast_array, make_comparator, new_null_array,
 };
 use arrow::array::{
     ArrayRef, BinaryArray, BinaryViewArray, BooleanArray, Date32Array, Date64Array,
@@ -54,7 +54,7 @@ use arrow::array::{
 };
 use arrow::buffer::{BooleanBuffer, NullBuffer};
 use arrow::compute::kernels::cmp::eq;
-use arrow::compute::{self, FilterBuilder, and, take};
+use arrow::compute::{self, take};
 use arrow::datatypes::{
     ArrowNativeType, Field, Schema, SchemaBuilder, UInt32Type, UInt64Type,
 };
@@ -1767,37 +1767,54 @@ pub(super) fn equal_rows_arr(
     right_arrays: &[ArrayRef],
     null_equality: NullEquality,
 ) -> Result<(UInt64Array, UInt32Array)> {
-    let mut iter = left_arrays.iter().zip(right_arrays.iter());
+    let num_indices = indices_left.len();
+    if num_indices == 0 || left_arrays.is_empty() {
+        return Ok((
+            UInt64Array::from(Vec::<u64>::new()),
+            UInt32Array::from(Vec::<u32>::new()),
+        ));
+    }
 
-    let Some((first_left, first_right)) = iter.next() else {
-        return Ok((Vec::<u64>::new().into(), Vec::<u32>::new().into()));
-    };
+    let mut comparators = Vec::with_capacity(left_arrays.len());
+    for (left, right) in left_arrays.iter().zip(right_arrays.iter()) {
+        comparators.push(make_comparator(
+            left.as_ref(),
+            right.as_ref(),
+            SortOptions::default(),
+        )?);
+    }
 
-    let arr_left = take(first_left.as_ref(), indices_left, None)?;
-    let arr_right = take(first_right.as_ref(), indices_right, None)?;
+    let mut left_builder = UInt64Builder::with_capacity(num_indices);
+    let mut right_builder = UInt32Builder::with_capacity(num_indices);
 
-    let mut equal: BooleanArray = eq_dyn_null(&arr_left, &arr_right, null_equality)?;
+    for i in 0..num_indices {
+        let left_idx = indices_left.value(i) as usize;
+        let right_idx = indices_right.value(i) as usize;
 
-    // Use map and try_fold to iterate over the remaining pairs of arrays.
-    // In each iteration, take is used on the pair of arrays and their equality is determined.
-    // The results are then folded (combined) using the and function to get a final equality result.
-    equal = iter
-        .map(|(left, right)| {
-            let arr_left = take(left.as_ref(), indices_left, None)?;
-            let arr_right = take(right.as_ref(), indices_right, None)?;
-            eq_dyn_null(arr_left.as_ref(), arr_right.as_ref(), null_equality)
-        })
-        .try_fold(equal, |acc, equal2| and(&acc, &equal2?))?;
+        let mut is_equal = true;
+        for (col_idx, cmp) in comparators.iter().enumerate() {
+            match (null_equality, cmp(left_idx, right_idx)) {
+                (NullEquality::NullEqualsNull, Ordering::Equal) => continue,
+                (NullEquality::NullEqualsNothing, Ordering::Equal) => {
+                    if left_arrays.get(col_idx).unwrap().is_null(left_idx) {
+                        is_equal = false;
+                        break;
+                    }
+                }
+                _ => {
+                    is_equal = false;
+                    break;
+                }
+            }
+        }
 
-    let filter_builder = FilterBuilder::new(&equal).optimize().build();
+        if is_equal {
+            left_builder.append_value(indices_left.value(i));
+            right_builder.append_value(indices_right.value(i));
+        }
+    }
 
-    let left_filtered = filter_builder.filter(indices_left)?;
-    let right_filtered = filter_builder.filter(indices_right)?;
-
-    Ok((
-        downcast_array(left_filtered.as_ref()),
-        downcast_array(right_filtered.as_ref()),
-    ))
+    Ok((left_builder.finish(), right_builder.finish()))
 }
 
 // version of eq_dyn supporting equality on null arrays
@@ -2948,5 +2965,58 @@ mod tests {
         };
         let result = max_distinct_count(&num_rows, &stats);
         assert_eq!(result, Exact(0));
+    }
+
+    #[test]
+    fn test_equal_rows_arr() -> Result<()> {
+        let left_col = Arc::new(Int32Array::from(vec![1, 2, 3, 4, 5])) as ArrayRef;
+        let right_col = Arc::new(Int32Array::from(vec![1, 2, 3, 4, 6])) as ArrayRef;
+
+        let indices_left = UInt64Array::from(vec![0, 1, 2, 3, 4]);
+        let indices_right = UInt32Array::from(vec![0, 1, 2, 3, 4]);
+
+        // Test NullEqualsNothing
+        let (res_left, res_right) = equal_rows_arr(
+            &indices_left,
+            &indices_right,
+            &[Arc::clone(&left_col)],
+            &[Arc::clone(&right_col)],
+            NullEquality::NullEqualsNothing,
+        )?;
+
+        assert_eq!(res_left, UInt64Array::from(vec![0, 1, 2, 3]));
+        assert_eq!(res_right, UInt32Array::from(vec![0, 1, 2, 3]));
+
+        // Test with NULLs
+        let left_col = Arc::new(Int32Array::from(vec![Some(1), None, Some(3)])) as ArrayRef;
+        let right_col =
+            Arc::new(Int32Array::from(vec![Some(1), None, Some(4)])) as ArrayRef;
+
+        let indices_left = UInt64Array::from(vec![0, 1, 2]);
+        let indices_right = UInt32Array::from(vec![0, 1, 2]);
+
+        // NullEqualsNothing: NULL != NULL
+        let (res_left, res_right) = equal_rows_arr(
+            &indices_left,
+            &indices_right,
+            &[Arc::clone(&left_col)],
+            &[Arc::clone(&right_col)],
+            NullEquality::NullEqualsNothing,
+        )?;
+        assert_eq!(res_left, UInt64Array::from(vec![0]));
+        assert_eq!(res_right, UInt32Array::from(vec![0]));
+
+        // NullEqualsNull: NULL == NULL
+        let (res_left, res_right) = equal_rows_arr(
+            &indices_left,
+            &indices_right,
+            &[Arc::clone(&left_col)],
+            &[Arc::clone(&right_col)],
+            NullEquality::NullEqualsNull,
+        )?;
+        assert_eq!(res_left, UInt64Array::from(vec![0, 1]));
+        assert_eq!(res_right, UInt32Array::from(vec![0, 1]));
+
+        Ok(())
     }
 }
