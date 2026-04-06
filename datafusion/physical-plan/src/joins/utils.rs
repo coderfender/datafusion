@@ -1817,28 +1817,6 @@ pub(super) fn equal_rows_arr(
     Ok((left_builder.finish(), right_builder.finish()))
 }
 
-// version of eq_dyn supporting equality on null arrays
-fn eq_dyn_null(
-    left: &dyn Array,
-    right: &dyn Array,
-    null_equality: NullEquality,
-) -> Result<BooleanArray, ArrowError> {
-    // Nested datatypes cannot use the underlying not_distinct/eq function and must use a special
-    // implementation
-    // <https://github.com/apache/datafusion/issues/10749>
-    if left.data_type().is_nested() {
-        let op = match null_equality {
-            NullEquality::NullEqualsNothing => Operator::Eq,
-            NullEquality::NullEqualsNull => Operator::IsNotDistinctFrom,
-        };
-        return Ok(compare_op_for_nested(op, &left, &right)?);
-    }
-    match null_equality {
-        NullEquality::NullEqualsNothing => eq(&left, &right),
-        NullEquality::NullEqualsNull => not_distinct(&left, &right),
-    }
-}
-
 /// Get comparison result of two rows of join arrays
 pub fn compare_join_arrays(
     left_arrays: &[ArrayRef],
