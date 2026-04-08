@@ -18,7 +18,7 @@
 //! Defines physical expressions that can evaluated at runtime during query execution
 
 use crate::hyperloglog::{HLL_HASH_STATE, HyperLogLog};
-use arrow::array::{Array, BinaryArray, StringViewArray};
+use arrow::array::{Array, AsArray, BinaryArray, BooleanArray, StringViewArray};
 use arrow::array::{
     GenericBinaryArray, GenericStringArray, OffsetSizeTrait, PrimitiveArray,
 };
@@ -157,6 +157,358 @@ where
             hll: HyperLogLog::new(),
             phantom_data: PhantomData,
         }
+    }
+}
+
+#[derive(Debug)]
+struct BoolDistinctAccumulator {
+    seen_true: bool,
+    seen_false: bool,
+}
+
+impl BoolDistinctAccumulator {
+    fn new() -> Self {
+        Self {
+            seen_true: false,
+            seen_false: false,
+        }
+    }
+}
+
+impl Accumulator for BoolDistinctAccumulator {
+    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
+        let array: &BooleanArray = downcast_value!(values[0], BooleanArray);
+        for value in array.iter().flatten() {
+            if value {
+                self.seen_true = true;
+            } else {
+                self.seen_false = true;
+            }
+        }
+        Ok(())
+    }
+
+    fn evaluate(&mut self) -> Result<ScalarValue> {
+        let count = (self.seen_true as u64) + (self.seen_false as u64);
+        Ok(ScalarValue::UInt64(Some(count)))
+    }
+
+    fn size(&self) -> usize {
+        size_of::<Self>()
+    }
+
+    fn state(&mut self) -> Result<Vec<ScalarValue>> {
+        // Pack into 1 byte: bit 0 = seen_false, bit 1 = seen_true
+        let packed = (self.seen_false as u8) | ((self.seen_true as u8) << 1);
+        Ok(vec![ScalarValue::Binary(Some(vec![packed]))])
+    }
+
+    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
+        let array = downcast_value!(states[0], BinaryArray);
+        for data in array.iter().flatten() {
+            if !data.is_empty() {
+                self.seen_false |= (data[0] & 1) != 0;
+                self.seen_true |= (data[0] & 2) != 0;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct Bitmap256Accumulator {
+    /// 256 bits = 4 x u64, tracks values 0-255
+    bitmap: [u64; 4],
+}
+
+impl Bitmap256Accumulator {
+    fn new() -> Self {
+        Self { bitmap: [0; 4] }
+    }
+
+    #[inline]
+    fn set_bit(&mut self, value: u8) {
+        let word = (value / 64) as usize;
+        let bit = value % 64;
+        self.bitmap[word] |= 1u64 << bit;
+    }
+
+    #[inline]
+    fn count(&self) -> u64 {
+        self.bitmap.iter().map(|w| w.count_ones() as u64).sum()
+    }
+
+    fn merge(&mut self, other: &[u64; 4]) {
+        for i in 0..4 {
+            self.bitmap[i] |= other[i];
+        }
+    }
+}
+
+impl Accumulator for Bitmap256Accumulator {
+    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
+        let array = values[0].as_primitive::<UInt8Type>();
+        for value in array.iter().flatten() {
+            self.set_bit(value);
+        }
+        Ok(())
+    }
+
+    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
+        let array = downcast_value!(states[0], BinaryArray);
+        for data in array.iter().flatten() {
+            if data.len() == 32 {
+                // Convert &[u8] to [u64; 4]
+                let mut other = [0u64; 4];
+                for i in 0..4 {
+                    let offset = i * 8;
+                    other[i] =
+                        u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+                }
+                self.merge(&other);
+            }
+        }
+        Ok(())
+    }
+
+    fn state(&mut self) -> Result<Vec<ScalarValue>> {
+        // Serialize [u64; 4] as 32 bytes
+        let mut bytes = Vec::with_capacity(32);
+        for word in &self.bitmap {
+            bytes.extend_from_slice(&word.to_le_bytes());
+        }
+        Ok(vec![ScalarValue::Binary(Some(bytes))])
+    }
+
+    fn evaluate(&mut self) -> Result<ScalarValue> {
+        Ok(ScalarValue::UInt64(Some(self.count())))
+    }
+
+    fn size(&self) -> usize {
+        size_of::<Self>()
+    }
+}
+
+#[derive(Debug)]
+struct Bitmap256AccumulatorI8 {
+    bitmap: [u64; 4],
+}
+
+impl Bitmap256AccumulatorI8 {
+    fn new() -> Self {
+        Self { bitmap: [0; 4] }
+    }
+
+    #[inline]
+    fn set_bit(&mut self, value: i8) {
+        // Convert i8 to u8 by reinterpreting bits
+        let idx = value as u8;
+        let word = (idx / 64) as usize;
+        let bit = idx % 64;
+        self.bitmap[word] |= 1u64 << bit;
+    }
+
+    #[inline]
+    fn count(&self) -> u64 {
+        self.bitmap.iter().map(|w| w.count_ones() as u64).sum()
+    }
+
+    fn merge(&mut self, other: &[u64; 4]) {
+        for i in 0..4 {
+            self.bitmap[i] |= other[i];
+        }
+    }
+}
+
+impl Accumulator for Bitmap256AccumulatorI8 {
+    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
+        let array = values[0].as_primitive::<Int8Type>();
+        for value in array.iter().flatten() {
+            self.set_bit(value);
+        }
+        Ok(())
+    }
+
+    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
+        let array = downcast_value!(states[0], BinaryArray);
+        for data in array.iter().flatten() {
+            if data.len() == 32 {
+                let mut other = [0u64; 4];
+                for i in 0..4 {
+                    let offset = i * 8;
+                    other[i] =
+                        u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+                }
+                self.merge(&other);
+            }
+        }
+        Ok(())
+    }
+
+    fn state(&mut self) -> Result<Vec<ScalarValue>> {
+        let mut bytes = Vec::with_capacity(32);
+        for word in &self.bitmap {
+            bytes.extend_from_slice(&word.to_le_bytes());
+        }
+        Ok(vec![ScalarValue::Binary(Some(bytes))])
+    }
+
+    fn evaluate(&mut self) -> Result<ScalarValue> {
+        Ok(ScalarValue::UInt64(Some(self.count())))
+    }
+
+    fn size(&self) -> usize {
+        size_of::<Self>()
+    }
+}
+
+/// Accumulator for u16 distinct counting using a 65536-bit bitmap
+#[derive(Debug)]
+struct Bitmap65536Accumulator {
+    /// 65536 bits = 1024 x u64, tracks values 0-65535
+    bitmap: Box<[u64; 1024]>,
+}
+
+impl Bitmap65536Accumulator {
+    fn new() -> Self {
+        Self {
+            bitmap: Box::new([0; 1024]),
+        }
+    }
+
+    #[inline]
+    fn set_bit(&mut self, value: u16) {
+        let word = (value / 64) as usize;
+        let bit = value % 64;
+        self.bitmap[word] |= 1u64 << bit;
+    }
+
+    #[inline]
+    fn count(&self) -> u64 {
+        self.bitmap.iter().map(|w| w.count_ones() as u64).sum()
+    }
+
+    fn merge(&mut self, other: &[u64; 1024]) {
+        for i in 0..1024 {
+            self.bitmap[i] |= other[i];
+        }
+    }
+}
+
+impl Accumulator for Bitmap65536Accumulator {
+    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
+        let array = values[0].as_primitive::<UInt16Type>();
+        for value in array.iter().flatten() {
+            self.set_bit(value);
+        }
+        Ok(())
+    }
+
+    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
+        let array = downcast_value!(states[0], BinaryArray);
+        for data in array.iter().flatten() {
+            if data.len() == 8192 {
+                let mut other = [0u64; 1024];
+                for i in 0..1024 {
+                    let offset = i * 8;
+                    other[i] =
+                        u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+                }
+                self.merge(&other);
+            }
+        }
+        Ok(())
+    }
+
+    fn state(&mut self) -> Result<Vec<ScalarValue>> {
+        let mut bytes = Vec::with_capacity(8192);
+        for word in self.bitmap.iter() {
+            bytes.extend_from_slice(&word.to_le_bytes());
+        }
+        Ok(vec![ScalarValue::Binary(Some(bytes))])
+    }
+
+    fn evaluate(&mut self) -> Result<ScalarValue> {
+        Ok(ScalarValue::UInt64(Some(self.count())))
+    }
+
+    fn size(&self) -> usize {
+        size_of::<Self>() + 8192
+    }
+}
+
+/// Accumulator for i16 distinct counting using a 65536-bit bitmap
+#[derive(Debug)]
+struct Bitmap65536AccumulatorI16 {
+    bitmap: Box<[u64; 1024]>,
+}
+
+impl Bitmap65536AccumulatorI16 {
+    fn new() -> Self {
+        Self {
+            bitmap: Box::new([0; 1024]),
+        }
+    }
+
+    #[inline]
+    fn set_bit(&mut self, value: i16) {
+        let idx = value as u16;
+        let word = (idx / 64) as usize;
+        let bit = idx % 64;
+        self.bitmap[word] |= 1u64 << bit;
+    }
+
+    #[inline]
+    fn count(&self) -> u64 {
+        self.bitmap.iter().map(|w| w.count_ones() as u64).sum()
+    }
+
+    fn merge(&mut self, other: &[u64; 1024]) {
+        for i in 0..1024 {
+            self.bitmap[i] |= other[i];
+        }
+    }
+}
+
+impl Accumulator for Bitmap65536AccumulatorI16 {
+    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
+        let array = values[0].as_primitive::<Int16Type>();
+        for value in array.iter().flatten() {
+            self.set_bit(value);
+        }
+        Ok(())
+    }
+
+    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
+        let array = downcast_value!(states[0], BinaryArray);
+        for data in array.iter().flatten() {
+            if data.len() == 8192 {
+                let mut other = [0u64; 1024];
+                for i in 0..1024 {
+                    let offset = i * 8;
+                    other[i] =
+                        u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+                }
+                self.merge(&other);
+            }
+        }
+        Ok(())
+    }
+
+    fn state(&mut self) -> Result<Vec<ScalarValue>> {
+        let mut bytes = Vec::with_capacity(8192);
+        for word in self.bitmap.iter() {
+            bytes.extend_from_slice(&word.to_le_bytes());
+        }
+        Ok(vec![ScalarValue::Binary(Some(bytes))])
+    }
+
+    fn evaluate(&mut self) -> Result<ScalarValue> {
+        Ok(ScalarValue::UInt64(Some(self.count())))
+    }
+
+    fn size(&self) -> usize {
+        size_of::<Self>() + 8192
     }
 }
 
@@ -344,12 +696,12 @@ impl AggregateUDFImpl for ApproxDistinct {
             // TODO u8, i8, u16, i16 shall really be done using bitmap, not HLL
             // TODO support for boolean (trivial case)
             // https://github.com/apache/datafusion/issues/1109
-            DataType::UInt8 => Box::new(NumericHLLAccumulator::<UInt8Type>::new()),
-            DataType::UInt16 => Box::new(NumericHLLAccumulator::<UInt16Type>::new()),
+            DataType::UInt8 => Box::new(Bitmap256Accumulator::new()),
+            DataType::UInt16 => Box::new(Bitmap65536Accumulator::new()),
             DataType::UInt32 => Box::new(NumericHLLAccumulator::<UInt32Type>::new()),
             DataType::UInt64 => Box::new(NumericHLLAccumulator::<UInt64Type>::new()),
-            DataType::Int8 => Box::new(NumericHLLAccumulator::<Int8Type>::new()),
-            DataType::Int16 => Box::new(NumericHLLAccumulator::<Int16Type>::new()),
+            DataType::Int8 => Box::new(Bitmap256AccumulatorI8::new()),
+            DataType::Int16 => Box::new(Bitmap65536AccumulatorI16::new()),
             DataType::Int32 => Box::new(NumericHLLAccumulator::<Int32Type>::new()),
             DataType::Int64 => Box::new(NumericHLLAccumulator::<Int64Type>::new()),
             DataType::Date32 => Box::new(NumericHLLAccumulator::<Date32Type>::new()),
@@ -383,6 +735,7 @@ impl AggregateUDFImpl for ApproxDistinct {
             DataType::Utf8View => Box::new(StringViewHLLAccumulator::new()),
             DataType::Binary => Box::new(BinaryHLLAccumulator::<i32>::new()),
             DataType::LargeBinary => Box::new(BinaryHLLAccumulator::<i64>::new()),
+            DataType::Boolean => Box::new(BoolDistinctAccumulator::new()),
             DataType::Null => {
                 Box::new(NoopAccumulator::new(ScalarValue::UInt64(Some(0))))
             }
