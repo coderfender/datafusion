@@ -215,153 +215,6 @@ impl Accumulator for BoolDistinctAccumulator {
     }
 }
 
-#[derive(Debug)]
-struct Bitmap256Accumulator {
-    /// 256 bits = 4 x u64, tracks values 0-255
-    bitmap: [u64; 4],
-}
-
-impl Bitmap256Accumulator {
-    fn new() -> Self {
-        Self { bitmap: [0; 4] }
-    }
-
-    #[inline]
-    fn set_bit(&mut self, value: u8) {
-        let word = (value >> 6) as usize;
-        let bit = value & 63;
-        self.bitmap[word] |= 1u64 << bit;
-    }
-
-    #[inline]
-    fn count(&self) -> u64 {
-        self.bitmap.iter().map(|w| w.count_ones() as u64).sum()
-    }
-
-    fn merge(&mut self, other: &[u64; 4]) {
-        for i in 0..4 {
-            self.bitmap[i] |= other[i];
-        }
-    }
-}
-
-impl Accumulator for Bitmap256Accumulator {
-    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
-        let array = values[0].as_primitive::<UInt8Type>();
-        for value in array.iter().flatten() {
-            self.set_bit(value);
-        }
-        Ok(())
-    }
-
-    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
-        let array = downcast_value!(states[0], BinaryArray);
-        for data in array.iter().flatten() {
-            if data.len() == 32 {
-                // Convert &[u8] to [u64; 4]
-                let mut other = [0u64; 4];
-                for i in 0..4 {
-                    let offset = i * 8;
-                    other[i] =
-                        u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-                }
-                self.merge(&other);
-            }
-        }
-        Ok(())
-    }
-
-    fn state(&mut self) -> Result<Vec<ScalarValue>> {
-        // Serialize [u64; 4] as 32 bytes
-        let mut bytes = Vec::with_capacity(32);
-        for word in &self.bitmap {
-            bytes.extend_from_slice(&word.to_le_bytes());
-        }
-        Ok(vec![ScalarValue::Binary(Some(bytes))])
-    }
-
-    fn evaluate(&mut self) -> Result<ScalarValue> {
-        Ok(ScalarValue::UInt64(Some(self.count())))
-    }
-
-    fn size(&self) -> usize {
-        size_of::<Self>()
-    }
-}
-
-#[derive(Debug)]
-struct Bitmap256AccumulatorI8 {
-    bitmap: [u64; 4],
-}
-
-impl Bitmap256AccumulatorI8 {
-    fn new() -> Self {
-        Self { bitmap: [0; 4] }
-    }
-
-    #[inline]
-    fn set_bit(&mut self, value: i8) {
-        // Convert i8 to u8 by reinterpreting bits
-        let idx = value as u8;
-        let word = (idx >> 6) as usize;
-        let bit = idx & 63;
-        self.bitmap[word] |= 1u64 << bit;
-    }
-
-    #[inline]
-    fn count(&self) -> u64 {
-        self.bitmap.iter().map(|w| w.count_ones() as u64).sum()
-    }
-
-    fn merge(&mut self, other: &[u64; 4]) {
-        for i in 0..4 {
-            self.bitmap[i] |= other[i];
-        }
-    }
-}
-
-impl Accumulator for Bitmap256AccumulatorI8 {
-    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
-        let array = values[0].as_primitive::<Int8Type>();
-        for value in array.iter().flatten() {
-            self.set_bit(value);
-        }
-        Ok(())
-    }
-
-    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
-        let array = downcast_value!(states[0], BinaryArray);
-        for data in array.iter().flatten() {
-            if data.len() == 32 {
-                let mut other = [0u64; 4];
-                for i in 0..4 {
-                    let offset = i * 8;
-                    other[i] =
-                        u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-                }
-                self.merge(&other);
-            }
-        }
-        Ok(())
-    }
-
-    fn state(&mut self) -> Result<Vec<ScalarValue>> {
-        let mut bytes = Vec::with_capacity(32);
-        for word in &self.bitmap {
-            bytes.extend_from_slice(&word.to_le_bytes());
-        }
-        Ok(vec![ScalarValue::Binary(Some(bytes))])
-    }
-
-    fn evaluate(&mut self) -> Result<ScalarValue> {
-        Ok(ScalarValue::UInt64(Some(self.count())))
-    }
-
-    fn size(&self) -> usize {
-        size_of::<Self>()
-    }
-}
-
 /// Accumulator for u16 distinct counting using a 65536-bit bitmap
 #[derive(Debug)]
 struct Bitmap65536Accumulator {
@@ -389,8 +242,8 @@ impl Bitmap65536Accumulator {
     }
 
     fn merge(&mut self, other: &[u64; 1024]) {
-        for i in 0..1024 {
-            self.bitmap[i] |= other[i];
+        for (dst, src) in self.bitmap.iter_mut().zip(other.iter()) {
+            *dst |= src;
         }
     }
 }
@@ -409,9 +262,9 @@ impl Accumulator for Bitmap65536Accumulator {
         for data in array.iter().flatten() {
             if data.len() == 8192 {
                 let mut other = [0u64; 1024];
-                for i in 0..1024 {
+                for (i, word) in other.iter_mut().enumerate() {
                     let offset = i * 8;
-                    other[i] =
+                    *word =
                         u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
                 }
                 self.merge(&other);
@@ -464,8 +317,8 @@ impl Bitmap65536AccumulatorI16 {
     }
 
     fn merge(&mut self, other: &[u64; 1024]) {
-        for i in 0..1024 {
-            self.bitmap[i] |= other[i];
+        for (dst, src) in self.bitmap.iter_mut().zip(other.iter()) {
+            *dst |= src;
         }
     }
 }
@@ -484,9 +337,9 @@ impl Accumulator for Bitmap65536AccumulatorI16 {
         for data in array.iter().flatten() {
             if data.len() == 8192 {
                 let mut other = [0u64; 1024];
-                for i in 0..1024 {
+                for (i, word) in other.iter_mut().enumerate() {
                     let offset = i * 8;
-                    other[i] =
+                    *word =
                         u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
                 }
                 self.merge(&other);
@@ -693,14 +546,12 @@ impl AggregateUDFImpl for ApproxDistinct {
         let data_type = acc_args.expr_fields[0].data_type();
 
         let accumulator: Box<dyn Accumulator> = match data_type {
-            // TODO u8, i8, u16, i16 shall really be done using bitmap, not HLL
-            // TODO support for boolean (trivial case)
-            // https://github.com/apache/datafusion/issues/1109
-            DataType::UInt8 => Box::new(Bitmap256Accumulator::new()),
+            // Benchmarked HLL to be faster than bitmap for u8/i8
+            DataType::UInt8 => Box::new(NumericHLLAccumulator::<UInt8Type>::new()),
             DataType::UInt16 => Box::new(Bitmap65536Accumulator::new()),
             DataType::UInt32 => Box::new(NumericHLLAccumulator::<UInt32Type>::new()),
             DataType::UInt64 => Box::new(NumericHLLAccumulator::<UInt64Type>::new()),
-            DataType::Int8 => Box::new(Bitmap256AccumulatorI8::new()),
+            DataType::Int8 => Box::new(NumericHLLAccumulator::<Int8Type>::new()),
             DataType::Int16 => Box::new(Bitmap65536AccumulatorI16::new()),
             DataType::Int32 => Box::new(NumericHLLAccumulator::<Int32Type>::new()),
             DataType::Int64 => Box::new(NumericHLLAccumulator::<Int64Type>::new()),
