@@ -18,8 +18,8 @@
 use std::sync::Arc;
 
 use arrow::array::{
-    ArrayRef, Int8Array, Int16Array, Int64Array, StringArray, StringViewArray,
-    UInt8Array, UInt16Array,
+    ArrayRef, BooleanArray, Int8Array, Int16Array, Int64Array, StringArray,
+    StringViewArray, UInt8Array, UInt16Array,
 };
 use arrow::datatypes::{DataType, Field, Schema};
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -88,6 +88,13 @@ fn create_i16_array(n_distinct: usize) -> Int16Array {
     let max_val = (n_distinct.min(65536) / 2) as i16;
     (0..BATCH_SIZE)
         .map(|_| Some(rng.random_range(-max_val..max_val)))
+        .collect()
+}
+
+fn create_bool_array() -> BooleanArray {
+    let mut rng = StdRng::seed_from_u64(42);
+    (0..BATCH_SIZE)
+        .map(|_| Some(rng.random_bool(0.5)))
         .collect()
 }
 
@@ -169,7 +176,7 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
         }
     }
 
-    // Small integer types
+    // --- Bitmap type benchmarks (our optimization) ---
 
     // UInt8
     let values = Arc::new(create_u8_array(200)) as ArrayRef;
@@ -209,6 +216,17 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
     c.bench_function("approx_distinct i16 bitmap", |b| {
         b.iter(|| {
             let mut accumulator = prepare_accumulator(DataType::Int16);
+            accumulator
+                .update_batch(std::slice::from_ref(&values))
+                .unwrap()
+        })
+    });
+
+    // Boolean
+    let values = Arc::new(create_bool_array()) as ArrayRef;
+    c.bench_function("approx_distinct bool bitmap", |b| {
+        b.iter(|| {
+            let mut accumulator = prepare_accumulator(DataType::Boolean);
             accumulator
                 .update_batch(std::slice::from_ref(&values))
                 .unwrap()
