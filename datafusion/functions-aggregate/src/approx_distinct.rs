@@ -228,8 +228,8 @@ impl Bitmap256Accumulator {
 
     #[inline]
     fn set_bit(&mut self, value: u8) {
-        let word = (value / 64) as usize;
-        let bit = value % 64;
+        let word = (value >> 6) as usize;
+        let bit = value & 63;
         self.bitmap[word] |= 1u64 << bit;
     }
 
@@ -303,8 +303,8 @@ impl Bitmap256AccumulatorI8 {
     fn set_bit(&mut self, value: i8) {
         // Convert i8 to u8 by reinterpreting bits
         let idx = value as u8;
-        let word = (idx / 64) as usize;
-        let bit = idx % 64;
+        let word = (idx >> 6) as usize;
+        let bit = idx & 63;
         self.bitmap[word] |= 1u64 << bit;
     }
 
