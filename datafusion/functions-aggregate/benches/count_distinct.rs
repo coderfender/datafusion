@@ -91,7 +91,7 @@ fn count_distinct_benchmark(c: &mut Criterion) {
     for pct in [80, 99] {
         let n_distinct = BATCH_SIZE * pct / 100;
 
-        // --- Int64 benchmarks (HashSet-based) ---
+        // Int64
         let values = Arc::new(create_i64_array(n_distinct)) as ArrayRef;
         c.bench_function(&format!("count_distinct i64 {pct}% distinct"), |b| {
             b.iter(|| {
@@ -103,9 +103,9 @@ fn count_distinct_benchmark(c: &mut Criterion) {
         });
     }
 
-    // --- Small integer type benchmarks (our optimization) ---
+    // Small integer types
 
-    // UInt8 - bool array based
+    // UInt8
     let values = Arc::new(create_u8_array(200)) as ArrayRef;
     c.bench_function("count_distinct u8 bitmap", |b| {
         b.iter(|| {
@@ -116,7 +116,7 @@ fn count_distinct_benchmark(c: &mut Criterion) {
         })
     });
 
-    // Int8 - bool array based
+    // Int8
     let values = Arc::new(create_i8_array(200)) as ArrayRef;
     c.bench_function("count_distinct i8 bitmap", |b| {
         b.iter(|| {
@@ -127,7 +127,7 @@ fn count_distinct_benchmark(c: &mut Criterion) {
         })
     });
 
-    // UInt16 - bitmap based
+    // UInt16
     let values = Arc::new(create_u16_array(50000)) as ArrayRef;
     c.bench_function("count_distinct u16 bitmap", |b| {
         b.iter(|| {
@@ -138,7 +138,7 @@ fn count_distinct_benchmark(c: &mut Criterion) {
         })
     });
 
-    // Int16 - bitmap based
+    // Int16
     let values = Arc::new(create_i16_array(50000)) as ArrayRef;
     c.bench_function("count_distinct i16 bitmap", |b| {
         b.iter(|| {

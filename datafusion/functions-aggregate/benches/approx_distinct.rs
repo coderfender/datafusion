@@ -123,7 +123,7 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
     for pct in [80, 99] {
         let n_distinct = BATCH_SIZE * pct / 100;
 
-        // --- Int64 benchmarks ---
+        // Int64
         let values = Arc::new(create_i64_array(n_distinct)) as ArrayRef;
         c.bench_function(&format!("approx_distinct i64 {pct}% distinct"), |b| {
             b.iter(|| {
@@ -139,7 +139,7 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
         {
             let string_pool = create_string_pool(n_distinct, str_len);
 
-            // --- Utf8 benchmarks ---
+            // Utf8
             let values = Arc::new(create_string_array(&string_pool)) as ArrayRef;
             c.bench_function(
                 &format!("approx_distinct utf8 {label} {pct}% distinct"),
@@ -153,7 +153,7 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
                 },
             );
 
-            // --- Utf8View benchmarks ---
+            // Utf8View
             let values = Arc::new(create_string_view_array(&string_pool)) as ArrayRef;
             c.bench_function(
                 &format!("approx_distinct utf8view {label} {pct}% distinct"),
@@ -169,7 +169,7 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
         }
     }
 
-    // --- Bitmap type benchmarks (our optimization) ---
+    // Small integer types
 
     // UInt8
     let values = Arc::new(create_u8_array(200)) as ArrayRef;
