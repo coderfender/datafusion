@@ -222,16 +222,16 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
         })
     });
 
-    // Boolean
-    let values = Arc::new(create_bool_array()) as ArrayRef;
-    c.bench_function("approx_distinct bool bitmap", |b| {
-        b.iter(|| {
-            let mut accumulator = prepare_accumulator(DataType::Boolean);
-            accumulator
-                .update_batch(std::slice::from_ref(&values))
-                .unwrap()
-        })
-    });
+    // // Boolean - commented out for main comparison (not supported on main)
+    // let values = Arc::new(create_bool_array()) as ArrayRef;
+    // c.bench_function("approx_distinct bool bitmap", |b| {
+    //     b.iter(|| {
+    //         let mut accumulator = prepare_accumulator(DataType::Boolean);
+    //         accumulator
+    //             .update_batch(std::slice::from_ref(&values))
+    //             .unwrap()
+    //     })
+    // });
 }
 
 criterion_group!(benches, approx_distinct_benchmark);
