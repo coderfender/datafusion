@@ -169,7 +169,7 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
         }
     }
 
-    // --- Bitmap type benchmarks (our optimization) ---
+    // Small integer types
 
     // UInt8
     let values = Arc::new(create_u8_array(200)) as ArrayRef;

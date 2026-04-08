@@ -658,7 +658,7 @@ impl AggregateUDFImpl for ApproxDistinct {
         let data_type = acc_args.expr_fields[0].data_type();
 
         let accumulator: Box<dyn Accumulator> = match data_type {
-            // Testing bool array for u8
+            // Use bitmap accumulators for small integer types
             DataType::UInt8 => Box::new(BoolArray256Accumulator::new()),
             DataType::UInt16 => Box::new(Bitmap65536Accumulator::new()),
             DataType::UInt32 => Box::new(NumericHLLAccumulator::<UInt32Type>::new()),
