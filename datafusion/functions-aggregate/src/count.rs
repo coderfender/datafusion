@@ -21,11 +21,11 @@ use arrow::{
     compute,
     datatypes::{
         DataType, Date32Type, Date64Type, Decimal128Type, Decimal256Type, Field,
-        FieldRef, Float16Type, Float32Type, Float64Type, Int8Type, Int16Type, Int32Type,
+        FieldRef, Float16Type, Float32Type, Float64Type, Int32Type,
         Int64Type, Time32MillisecondType, Time32SecondType, Time64MicrosecondType,
         Time64NanosecondType, TimeUnit, TimestampMicrosecondType,
         TimestampMillisecondType, TimestampNanosecondType, TimestampSecondType,
-        UInt8Type, UInt16Type, UInt32Type, UInt64Type,
+        UInt32Type, UInt64Type,
     },
 };
 use datafusion_common::hash_utils::RandomState;
@@ -42,6 +42,10 @@ use datafusion_expr::{
     utils::format_state_name,
 };
 use datafusion_functions_aggregate_common::aggregate::{
+    count_distinct::Bitmap65536DistinctCountAccumulator,
+    count_distinct::Bitmap65536DistinctCountAccumulatorI16,
+    count_distinct::BoolArray256DistinctCountAccumulator,
+    count_distinct::BoolArray256DistinctCountAccumulatorI8,
     count_distinct::BytesDistinctCountAccumulator,
     count_distinct::BytesViewDistinctCountAccumulator,
     count_distinct::DictionaryCountAccumulator,
@@ -170,25 +174,18 @@ impl Count {
 }
 fn get_count_accumulator(data_type: &DataType) -> Box<dyn Accumulator> {
     match data_type {
-        // try and use a specialized accumulator if possible, otherwise fall back to generic accumulator
-        DataType::Int8 => Box::new(PrimitiveDistinctCountAccumulator::<Int8Type>::new(
-            data_type,
-        )),
-        DataType::Int16 => Box::new(PrimitiveDistinctCountAccumulator::<Int16Type>::new(
-            data_type,
-        )),
+        // Use optimized bitmap/bool array accumulators for small integer types
+        DataType::UInt8 => Box::new(BoolArray256DistinctCountAccumulator::new()),
+        DataType::Int8 => Box::new(BoolArray256DistinctCountAccumulatorI8::new()),
+        DataType::UInt16 => Box::new(Bitmap65536DistinctCountAccumulator::new()),
+        DataType::Int16 => Box::new(Bitmap65536DistinctCountAccumulatorI16::new()),
+        // Use HashSet-based accumulator for larger integer types
         DataType::Int32 => Box::new(PrimitiveDistinctCountAccumulator::<Int32Type>::new(
             data_type,
         )),
         DataType::Int64 => Box::new(PrimitiveDistinctCountAccumulator::<Int64Type>::new(
             data_type,
         )),
-        DataType::UInt8 => Box::new(PrimitiveDistinctCountAccumulator::<UInt8Type>::new(
-            data_type,
-        )),
-        DataType::UInt16 => Box::new(
-            PrimitiveDistinctCountAccumulator::<UInt16Type>::new(data_type),
-        ),
         DataType::UInt32 => Box::new(
             PrimitiveDistinctCountAccumulator::<UInt32Type>::new(data_type),
         ),

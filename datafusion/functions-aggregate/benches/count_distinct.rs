@@ -17,9 +17,7 @@
 
 use std::sync::Arc;
 
-use arrow::array::{
-    ArrayRef, Int8Array, Int16Array, Int64Array, UInt8Array, UInt16Array,
-};
+use arrow::array::{ArrayRef, Int16Array, Int64Array, Int8Array, UInt16Array, UInt8Array};
 use arrow::datatypes::{DataType, Field, Schema};
 use criterion::{Criterion, criterion_group, criterion_main};
 use datafusion_expr::function::AccumulatorArgs;
@@ -91,7 +89,7 @@ fn count_distinct_benchmark(c: &mut Criterion) {
     for pct in [80, 99] {
         let n_distinct = BATCH_SIZE * pct / 100;
 
-        // Int64
+        // --- Int64 benchmarks (HashSet-based) ---
         let values = Arc::new(create_i64_array(n_distinct)) as ArrayRef;
         c.bench_function(&format!("count_distinct i64 {pct}% distinct"), |b| {
             b.iter(|| {
@@ -103,9 +101,9 @@ fn count_distinct_benchmark(c: &mut Criterion) {
         });
     }
 
-    // Small integer types
+    // --- Small integer type benchmarks (our optimization) ---
 
-    // UInt8
+    // UInt8 - bool array based
     let values = Arc::new(create_u8_array(200)) as ArrayRef;
     c.bench_function("count_distinct u8 bitmap", |b| {
         b.iter(|| {
@@ -116,7 +114,7 @@ fn count_distinct_benchmark(c: &mut Criterion) {
         })
     });
 
-    // Int8
+    // Int8 - bool array based
     let values = Arc::new(create_i8_array(200)) as ArrayRef;
     c.bench_function("count_distinct i8 bitmap", |b| {
         b.iter(|| {
@@ -127,7 +125,7 @@ fn count_distinct_benchmark(c: &mut Criterion) {
         })
     });
 
-    // UInt16
+    // UInt16 - bitmap based
     let values = Arc::new(create_u16_array(50000)) as ArrayRef;
     c.bench_function("count_distinct u16 bitmap", |b| {
         b.iter(|| {
@@ -138,7 +136,7 @@ fn count_distinct_benchmark(c: &mut Criterion) {
         })
     });
 
-    // Int16
+    // Int16 - bitmap based
     let values = Arc::new(create_i16_array(50000)) as ArrayRef;
     c.bench_function("count_distinct i16 bitmap", |b| {
         b.iter(|| {
