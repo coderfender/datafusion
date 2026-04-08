@@ -17,7 +17,9 @@
 
 use std::sync::Arc;
 
-use arrow::array::{ArrayRef, Int16Array, Int64Array, Int8Array, UInt16Array, UInt8Array};
+use arrow::array::{
+    ArrayRef, Int8Array, Int16Array, Int64Array, UInt8Array, UInt16Array,
+};
 use arrow::datatypes::{DataType, Field, Schema};
 use criterion::{Criterion, criterion_group, criterion_main};
 use datafusion_expr::function::AccumulatorArgs;

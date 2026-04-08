@@ -230,9 +230,9 @@ impl Accumulator for BoolArray256DistinctCountAccumulator {
             .filter_map(|(idx, &seen)| if seen { Some(idx as u8) } else { None })
             .collect();
 
-        let arr = Arc::new(PrimitiveArray::<arrow::datatypes::UInt8Type>::from_iter_values(
-            values,
-        ));
+        let arr = Arc::new(
+            PrimitiveArray::<arrow::datatypes::UInt8Type>::from_iter_values(values),
+        );
         Ok(vec![
             SingleRowListArrayBuilder::new(arr).build_list_scalar(),
         ])
@@ -308,18 +308,16 @@ impl Accumulator for BoolArray256DistinctCountAccumulatorI8 {
             .seen
             .iter()
             .enumerate()
-            .filter_map(|(idx, &seen)| {
-                if seen {
-                    Some(idx as u8 as i8)
-                } else {
-                    None
-                }
-            })
+            .filter_map(
+                |(idx, &seen)| {
+                    if seen { Some(idx as u8 as i8) } else { None }
+                },
+            )
             .collect();
 
-        let arr = Arc::new(PrimitiveArray::<arrow::datatypes::Int8Type>::from_iter_values(
-            values,
-        ));
+        let arr = Arc::new(
+            PrimitiveArray::<arrow::datatypes::Int8Type>::from_iter_values(values),
+        );
         Ok(vec![
             SingleRowListArrayBuilder::new(arr).build_list_scalar(),
         ])
@@ -409,9 +407,9 @@ impl Accumulator for Bitmap65536DistinctCountAccumulator {
             }
         }
 
-        let arr = Arc::new(PrimitiveArray::<arrow::datatypes::UInt16Type>::from_iter_values(
-            values,
-        ));
+        let arr = Arc::new(
+            PrimitiveArray::<arrow::datatypes::UInt16Type>::from_iter_values(values),
+        );
         Ok(vec![
             SingleRowListArrayBuilder::new(arr).build_list_scalar(),
         ])
@@ -502,9 +500,9 @@ impl Accumulator for Bitmap65536DistinctCountAccumulatorI16 {
             }
         }
 
-        let arr = Arc::new(PrimitiveArray::<arrow::datatypes::Int16Type>::from_iter_values(
-            values,
-        ));
+        let arr = Arc::new(
+            PrimitiveArray::<arrow::datatypes::Int16Type>::from_iter_values(values),
+        );
         Ok(vec![
             SingleRowListArrayBuilder::new(arr).build_list_scalar(),
         ])
