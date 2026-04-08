@@ -17,10 +17,7 @@
 
 use std::sync::Arc;
 
-use arrow::array::{
-    ArrayRef, Int8Array, Int16Array, Int64Array, StringArray, StringViewArray,
-    UInt8Array, UInt16Array,
-};
+use arrow::array::{ArrayRef, Int64Array, StringArray, StringViewArray};
 use arrow::datatypes::{DataType, Field, Schema};
 use criterion::{Criterion, criterion_group, criterion_main};
 use datafusion_expr::function::AccumulatorArgs;
@@ -59,38 +56,6 @@ fn create_i64_array(n_distinct: usize) -> Int64Array {
         .collect()
 }
 
-fn create_u8_array(n_distinct: usize) -> UInt8Array {
-    let mut rng = StdRng::seed_from_u64(42);
-    let max_val = n_distinct.min(256) as u8;
-    (0..BATCH_SIZE)
-        .map(|_| Some(rng.random_range(0..max_val)))
-        .collect()
-}
-
-fn create_i8_array(n_distinct: usize) -> Int8Array {
-    let mut rng = StdRng::seed_from_u64(42);
-    let max_val = (n_distinct.min(256) / 2) as i8;
-    (0..BATCH_SIZE)
-        .map(|_| Some(rng.random_range(-max_val..max_val)))
-        .collect()
-}
-
-fn create_u16_array(n_distinct: usize) -> UInt16Array {
-    let mut rng = StdRng::seed_from_u64(42);
-    let max_val = n_distinct.min(65536) as u16;
-    (0..BATCH_SIZE)
-        .map(|_| Some(rng.random_range(0..max_val)))
-        .collect()
-}
-
-fn create_i16_array(n_distinct: usize) -> Int16Array {
-    let mut rng = StdRng::seed_from_u64(42);
-    let max_val = (n_distinct.min(65536) / 2) as i16;
-    (0..BATCH_SIZE)
-        .map(|_| Some(rng.random_range(-max_val..max_val)))
-        .collect()
-}
-
 /// Creates a pool of `n_distinct` random strings of the given length.
 fn create_string_pool(n_distinct: usize, string_length: usize) -> Vec<String> {
     let mut rng = StdRng::seed_from_u64(42);
@@ -123,7 +88,7 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
     for pct in [80, 99] {
         let n_distinct = BATCH_SIZE * pct / 100;
 
-        // Int64
+        // --- Int64 benchmarks ---
         let values = Arc::new(create_i64_array(n_distinct)) as ArrayRef;
         c.bench_function(&format!("approx_distinct i64 {pct}% distinct"), |b| {
             b.iter(|| {
@@ -139,7 +104,7 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
         {
             let string_pool = create_string_pool(n_distinct, str_len);
 
-            // Utf8
+            // --- Utf8 benchmarks ---
             let values = Arc::new(create_string_array(&string_pool)) as ArrayRef;
             c.bench_function(
                 &format!("approx_distinct utf8 {label} {pct}% distinct"),
@@ -153,7 +118,7 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
                 },
             );
 
-            // Utf8View
+            // --- Utf8View benchmarks ---
             let values = Arc::new(create_string_view_array(&string_pool)) as ArrayRef;
             c.bench_function(
                 &format!("approx_distinct utf8view {label} {pct}% distinct"),
@@ -168,52 +133,6 @@ fn approx_distinct_benchmark(c: &mut Criterion) {
             );
         }
     }
-
-    // Small integer types
-
-    // UInt8
-    let values = Arc::new(create_u8_array(200)) as ArrayRef;
-    c.bench_function("approx_distinct u8 bitmap", |b| {
-        b.iter(|| {
-            let mut accumulator = prepare_accumulator(DataType::UInt8);
-            accumulator
-                .update_batch(std::slice::from_ref(&values))
-                .unwrap()
-        })
-    });
-
-    // Int8
-    let values = Arc::new(create_i8_array(200)) as ArrayRef;
-    c.bench_function("approx_distinct i8 bitmap", |b| {
-        b.iter(|| {
-            let mut accumulator = prepare_accumulator(DataType::Int8);
-            accumulator
-                .update_batch(std::slice::from_ref(&values))
-                .unwrap()
-        })
-    });
-
-    // UInt16
-    let values = Arc::new(create_u16_array(50000)) as ArrayRef;
-    c.bench_function("approx_distinct u16 bitmap", |b| {
-        b.iter(|| {
-            let mut accumulator = prepare_accumulator(DataType::UInt16);
-            accumulator
-                .update_batch(std::slice::from_ref(&values))
-                .unwrap()
-        })
-    });
-
-    // Int16
-    let values = Arc::new(create_i16_array(50000)) as ArrayRef;
-    c.bench_function("approx_distinct i16 bitmap", |b| {
-        b.iter(|| {
-            let mut accumulator = prepare_accumulator(DataType::Int16);
-            accumulator
-                .update_batch(std::slice::from_ref(&values))
-                .unwrap()
-        })
-    });
 }
 
 criterion_group!(benches, approx_distinct_benchmark);
