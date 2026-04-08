@@ -215,6 +215,118 @@ impl Accumulator for BoolDistinctAccumulator {
     }
 }
 
+/// Accumulator for u8 distinct counting using a bool array
+#[derive(Debug)]
+struct BoolArray256Accumulator {
+    seen: Box<[bool; 256]>,
+}
+
+impl BoolArray256Accumulator {
+    fn new() -> Self {
+        Self {
+            seen: Box::new([false; 256]),
+        }
+    }
+
+    #[inline]
+    fn count(&self) -> u64 {
+        self.seen.iter().filter(|&&b| b).count() as u64
+    }
+}
+
+impl Accumulator for BoolArray256Accumulator {
+    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
+        let array = values[0].as_primitive::<UInt8Type>();
+        for value in array.iter().flatten() {
+            self.seen[value as usize] = true;
+        }
+        Ok(())
+    }
+
+    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
+        let array = downcast_value!(states[0], BinaryArray);
+        for data in array.iter().flatten() {
+            if data.len() == 256 {
+                for (i, &b) in data.iter().enumerate() {
+                    if b != 0 {
+                        self.seen[i] = true;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn state(&mut self) -> Result<Vec<ScalarValue>> {
+        let bytes: Vec<u8> = self.seen.iter().map(|&b| b as u8).collect();
+        Ok(vec![ScalarValue::Binary(Some(bytes))])
+    }
+
+    fn evaluate(&mut self) -> Result<ScalarValue> {
+        Ok(ScalarValue::UInt64(Some(self.count())))
+    }
+
+    fn size(&self) -> usize {
+        size_of::<Self>() + 256
+    }
+}
+
+/// Accumulator for i8 distinct counting using a bool array
+#[derive(Debug)]
+struct BoolArray256AccumulatorI8 {
+    seen: Box<[bool; 256]>,
+}
+
+impl BoolArray256AccumulatorI8 {
+    fn new() -> Self {
+        Self {
+            seen: Box::new([false; 256]),
+        }
+    }
+
+    #[inline]
+    fn count(&self) -> u64 {
+        self.seen.iter().filter(|&&b| b).count() as u64
+    }
+}
+
+impl Accumulator for BoolArray256AccumulatorI8 {
+    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
+        let array = values[0].as_primitive::<Int8Type>();
+        for value in array.iter().flatten() {
+            self.seen[value as u8 as usize] = true;
+        }
+        Ok(())
+    }
+
+    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
+        let array = downcast_value!(states[0], BinaryArray);
+        for data in array.iter().flatten() {
+            if data.len() == 256 {
+                for (i, &b) in data.iter().enumerate() {
+                    if b != 0 {
+                        self.seen[i] = true;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn state(&mut self) -> Result<Vec<ScalarValue>> {
+        let bytes: Vec<u8> = self.seen.iter().map(|&b| b as u8).collect();
+        Ok(vec![ScalarValue::Binary(Some(bytes))])
+    }
+
+    fn evaluate(&mut self) -> Result<ScalarValue> {
+        Ok(ScalarValue::UInt64(Some(self.count())))
+    }
+
+    fn size(&self) -> usize {
+        size_of::<Self>() + 256
+    }
+}
+
 /// Accumulator for u16 distinct counting using a 65536-bit bitmap
 #[derive(Debug)]
 struct Bitmap65536Accumulator {
@@ -546,12 +658,12 @@ impl AggregateUDFImpl for ApproxDistinct {
         let data_type = acc_args.expr_fields[0].data_type();
 
         let accumulator: Box<dyn Accumulator> = match data_type {
-            // Benchmarked HLL to be faster than bitmap for u8/i8
-            DataType::UInt8 => Box::new(NumericHLLAccumulator::<UInt8Type>::new()),
+            // Testing bool array for u8
+            DataType::UInt8 => Box::new(BoolArray256Accumulator::new()),
             DataType::UInt16 => Box::new(Bitmap65536Accumulator::new()),
             DataType::UInt32 => Box::new(NumericHLLAccumulator::<UInt32Type>::new()),
             DataType::UInt64 => Box::new(NumericHLLAccumulator::<UInt64Type>::new()),
-            DataType::Int8 => Box::new(NumericHLLAccumulator::<Int8Type>::new()),
+            DataType::Int8 => Box::new(BoolArray256AccumulatorI8::new()),
             DataType::Int16 => Box::new(Bitmap65536AccumulatorI16::new()),
             DataType::Int32 => Box::new(NumericHLLAccumulator::<Int32Type>::new()),
             DataType::Int64 => Box::new(NumericHLLAccumulator::<Int64Type>::new()),
