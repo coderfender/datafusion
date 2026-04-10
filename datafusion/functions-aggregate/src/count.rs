@@ -174,12 +174,12 @@ impl Count {
 }
 fn get_count_accumulator(data_type: &DataType) -> Box<dyn Accumulator> {
     match data_type {
-        // Use optimized bitmap/bool array accumulators for small integer types
+        // Optimized bitmap/bool array accumulators for small integer types
         DataType::UInt8 => Box::new(BoolArray256DistinctCountAccumulator::new()),
         DataType::Int8 => Box::new(BoolArray256DistinctCountAccumulatorI8::new()),
         DataType::UInt16 => Box::new(Bitmap65536DistinctCountAccumulator::new()),
         DataType::Int16 => Box::new(Bitmap65536DistinctCountAccumulatorI16::new()),
-        // Use HashSet-based accumulator for larger integer types
+        // HashSet-based accumulator for larger integer types
         DataType::Int32 => Box::new(PrimitiveDistinctCountAccumulator::<Int32Type>::new(
             data_type,
         )),

@@ -170,13 +170,13 @@ impl<T: ArrowPrimitiveType + Debug> Accumulator for FloatDistinctCountAccumulato
 /// Uses 256 bytes to track all possible u8 values.
 #[derive(Debug)]
 pub struct BoolArray256DistinctCountAccumulator {
-    seen: Box<[bool; 256]>,
+    seen: [bool; 256],
 }
 
 impl BoolArray256DistinctCountAccumulator {
     pub fn new() -> Self {
         Self {
-            seen: Box::new([false; 256]),
+            seen: [false; 256],
         }
     }
 
@@ -251,13 +251,13 @@ impl Accumulator for BoolArray256DistinctCountAccumulator {
 /// Uses 256 bytes to track all possible i8 values (mapped to 0..255).
 #[derive(Debug)]
 pub struct BoolArray256DistinctCountAccumulatorI8 {
-    seen: Box<[bool; 256]>,
+    seen: [bool; 256],
 }
 
 impl BoolArray256DistinctCountAccumulatorI8 {
     pub fn new() -> Self {
         Self {
-            seen: Box::new([false; 256]),
+            seen: [false; 256],
         }
     }
 
