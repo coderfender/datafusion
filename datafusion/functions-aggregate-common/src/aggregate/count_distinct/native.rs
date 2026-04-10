@@ -175,9 +175,7 @@ pub struct BoolArray256DistinctCountAccumulator {
 
 impl BoolArray256DistinctCountAccumulator {
     pub fn new() -> Self {
-        Self {
-            seen: [false; 256],
-        }
+        Self { seen: [false; 256] }
     }
 
     #[inline]
@@ -256,9 +254,7 @@ pub struct BoolArray256DistinctCountAccumulatorI8 {
 
 impl BoolArray256DistinctCountAccumulatorI8 {
     pub fn new() -> Self {
-        Self {
-            seen: [false; 256],
-        }
+        Self { seen: [false; 256] }
     }
 
     #[inline]
