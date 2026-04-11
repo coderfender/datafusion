@@ -191,6 +191,7 @@ impl Default for BoolArray256DistinctCountAccumulator {
 }
 
 impl Accumulator for BoolArray256DistinctCountAccumulator {
+    #[inline(never)]
     fn update_batch(&mut self, values: &[ArrayRef]) -> datafusion_common::Result<()> {
         if values.is_empty() {
             return Ok(());
@@ -270,6 +271,7 @@ impl Default for BoolArray256DistinctCountAccumulatorI8 {
 }
 
 impl Accumulator for BoolArray256DistinctCountAccumulatorI8 {
+    #[inline(never)]
     fn update_batch(&mut self, values: &[ArrayRef]) -> datafusion_common::Result<()> {
         if values.is_empty() {
             return Ok(());
@@ -362,6 +364,7 @@ impl Default for Bitmap65536DistinctCountAccumulator {
 }
 
 impl Accumulator for Bitmap65536DistinctCountAccumulator {
+    #[inline(never)]
     fn update_batch(&mut self, values: &[ArrayRef]) -> datafusion_common::Result<()> {
         if values.is_empty() {
             return Ok(());
@@ -455,6 +458,7 @@ impl Default for Bitmap65536DistinctCountAccumulatorI16 {
 }
 
 impl Accumulator for Bitmap65536DistinctCountAccumulatorI16 {
+    #[inline(never)]
     fn update_batch(&mut self, values: &[ArrayRef]) -> datafusion_common::Result<()> {
         if values.is_empty() {
             return Ok(());
