@@ -18,8 +18,7 @@
 use std::sync::Arc;
 
 use arrow::array::{
-    Array, ArrayRef, Int8Array, Int16Array, Int32Array, Int64Array, UInt8Array,
-    UInt16Array, UInt32Array,
+    ArrayRef, Int8Array, Int16Array, Int64Array, UInt8Array, UInt16Array,
 };
 use arrow::datatypes::{DataType, Field, Schema};
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -85,20 +84,6 @@ fn create_i16_array(n_distinct: usize) -> Int16Array {
     let max_val = (n_distinct.min(65536) / 2) as i16;
     (0..BATCH_SIZE)
         .map(|_| Some(rng.random_range(-max_val..max_val)))
-        .collect()
-}
-
-fn create_u32_array(n_distinct: usize) -> UInt32Array {
-    let mut rng = StdRng::seed_from_u64(42);
-    (0..BATCH_SIZE)
-        .map(|_| Some(rng.random_range(0..n_distinct as u32)))
-        .collect()
-}
-
-fn create_i32_array(n_distinct: usize) -> Int32Array {
-    let mut rng = StdRng::seed_from_u64(42);
-    (0..BATCH_SIZE)
-        .map(|_| Some(rng.random_range(0..n_distinct as i32)))
         .collect()
 }
 
@@ -187,33 +172,6 @@ fn count_distinct_benchmark(c: &mut Criterion) {
                 .unwrap()
         })
     });
-
-    // 32-bit integer types
-    for pct in [80, 99] {
-        let n_distinct = BATCH_SIZE * pct / 100;
-
-        // UInt32
-        let values = Arc::new(create_u32_array(n_distinct)) as ArrayRef;
-        c.bench_function(&format!("count_distinct u32 {pct}% distinct"), |b| {
-            b.iter(|| {
-                let mut accumulator = prepare_accumulator(DataType::UInt32);
-                accumulator
-                    .update_batch(std::slice::from_ref(&values))
-                    .unwrap()
-            })
-        });
-
-        // Int32
-        let values = Arc::new(create_i32_array(n_distinct)) as ArrayRef;
-        c.bench_function(&format!("count_distinct i32 {pct}% distinct"), |b| {
-            b.iter(|| {
-                let mut accumulator = prepare_accumulator(DataType::Int32);
-                accumulator
-                    .update_batch(std::slice::from_ref(&values))
-                    .unwrap()
-            })
-        });
-    }
 }
 
 /// Create group indices with uniform distribution
@@ -242,218 +200,66 @@ fn create_skewed_groups(num_groups: usize) -> Vec<usize> {
 fn count_distinct_groups_benchmark(c: &mut Criterion) {
     let count_fn = Count::new();
 
-    let group_counts = [100, 1000, 10000];
-    let cardinalities = [("low", 20), ("mid", 80), ("high", 99)];
-    let distributions = ["uniform", "skewed"];
+    // bench different scenarios
+    let scenarios = [
+        // (name, num_groups, distinct_pct, group_fn)
+        ("sparse_uniform", 10, 80, "uniform"),
+        ("moderate_uniform", 100, 80, "uniform"),
+        ("dense_uniform", 1000, 80, "uniform"),
+        ("sparse_skewed", 10, 80, "skewed"),
+        ("dense_skewed", 1000, 80, "skewed"),
+        ("sparse_high_cardinality", 10, 99, "uniform"),
+        ("dense_low_cardinality", 1000, 20, "uniform"),
+    ];
 
-    // i64 benchmarks
-    for num_groups in group_counts {
-        for (card_name, distinct_pct) in cardinalities {
-            for dist in distributions {
-                let name = format!("i64_g{num_groups}_{card_name}_{dist}");
-                let n_distinct = BATCH_SIZE * distinct_pct / 100;
-                let values = Arc::new(create_i64_array(n_distinct)) as ArrayRef;
-                let group_indices = if dist == "uniform" {
-                    create_uniform_groups(num_groups)
-                } else {
-                    create_skewed_groups(num_groups)
-                };
+    for (name, num_groups, distinct_pct, group_type) in scenarios {
+        let n_distinct = BATCH_SIZE * distinct_pct / 100;
+        let values = Arc::new(create_i64_array(n_distinct)) as ArrayRef;
+        let group_indices = if group_type == "uniform" {
+            create_uniform_groups(num_groups)
+        } else {
+            create_skewed_groups(num_groups)
+        };
 
-                let (_schema, args) = prepare_args(DataType::Int64);
+        let (_schema, args) = prepare_args(DataType::Int64);
 
-                if count_fn.groups_accumulator_supported(args.clone()) {
-                    c.bench_function(&format!("count_distinct_groups {name}"), |b| {
-                        b.iter(|| {
-                            let mut acc =
-                                count_fn.create_groups_accumulator(args.clone()).unwrap();
-                            acc.update_batch(
-                                std::slice::from_ref(&values),
-                                &group_indices,
-                                None,
-                                num_groups,
-                            )
-                            .unwrap();
-                            acc.evaluate(EmitTo::All).unwrap()
-                        })
-                    });
-                } else {
+        if count_fn.groups_accumulator_supported(args.clone()) {
+            c.bench_function(&format!("count_distinct_groups {name}"), |b| {
+                b.iter(|| {
+                    let (_schema, args) = prepare_args(DataType::Int64);
+                    let mut acc = count_fn.create_groups_accumulator(args).unwrap();
+                    acc.update_batch(&[values.clone()], &group_indices, None, num_groups)
+                        .unwrap();
+                    acc.evaluate(EmitTo::All).unwrap()
+                })
+            });
+        } else {
+            c.bench_function(&format!("count_distinct_groups {name}"), |b| {
+                b.iter(|| {
+                    let mut accumulators: Vec<_> = (0..num_groups)
+                        .map(|_| prepare_accumulator(DataType::Int64))
+                        .collect();
+
                     let arr = values.as_any().downcast_ref::<Int64Array>().unwrap();
-                    let mut group_rows: Vec<Vec<i64>> = vec![Vec::new(); num_groups];
-                    for (idx, &group_idx) in group_indices.iter().enumerate() {
-                        if arr.is_valid(idx) {
-                            group_rows[group_idx].push(arr.value(idx));
+                    for (idx, group_idx) in group_indices.iter().enumerate() {
+                        if let Some(val) = arr.value(idx).into() {
+                            let single_val =
+                                Arc::new(Int64Array::from(vec![Some(val)])) as ArrayRef;
+                            accumulators[*group_idx]
+                                .update_batch(std::slice::from_ref(&single_val))
+                                .unwrap();
                         }
                     }
-                    let group_arrays: Vec<ArrayRef> = group_rows
-                        .iter()
-                        .map(|rows| Arc::new(Int64Array::from(rows.clone())) as ArrayRef)
+
+                    let _results: Vec<_> = accumulators
+                        .iter_mut()
+                        .map(|acc| acc.evaluate().unwrap())
                         .collect();
-
-                    c.bench_function(&format!("count_distinct_groups {name}"), |b| {
-                        b.iter(|| {
-                            let mut accumulators: Vec<_> = (0..num_groups)
-                                .map(|_| prepare_accumulator(DataType::Int64))
-                                .collect();
-
-                            for (group_idx, batch) in group_arrays.iter().enumerate() {
-                                if !batch.is_empty() {
-                                    accumulators[group_idx]
-                                        .update_batch(std::slice::from_ref(batch))
-                                        .unwrap();
-                                }
-                            }
-
-                            let _results: Vec<_> = accumulators
-                                .iter_mut()
-                                .map(|acc| acc.evaluate().unwrap())
-                                .collect();
-                        })
-                    });
-                }
-            }
-        }
-    }
-
-    // i32 benchmarks
-    for num_groups in group_counts {
-        for (card_name, distinct_pct) in cardinalities {
-            for dist in distributions {
-                let name = format!("i32_g{num_groups}_{card_name}_{dist}");
-                let n_distinct = BATCH_SIZE * distinct_pct / 100;
-                let values = Arc::new(create_i32_array(n_distinct)) as ArrayRef;
-                let group_indices = if dist == "uniform" {
-                    create_uniform_groups(num_groups)
-                } else {
-                    create_skewed_groups(num_groups)
-                };
-
-                let (_schema, args) = prepare_args(DataType::Int32);
-
-                if count_fn.groups_accumulator_supported(args.clone()) {
-                    c.bench_function(&format!("count_distinct_groups {name}"), |b| {
-                        b.iter(|| {
-                            let mut acc =
-                                count_fn.create_groups_accumulator(args.clone()).unwrap();
-                            acc.update_batch(
-                                std::slice::from_ref(&values),
-                                &group_indices,
-                                None,
-                                num_groups,
-                            )
-                            .unwrap();
-                            acc.evaluate(EmitTo::All).unwrap()
-                        })
-                    });
-                } else {
-                    let arr = values.as_any().downcast_ref::<Int32Array>().unwrap();
-                    let mut group_rows: Vec<Vec<i32>> = vec![Vec::new(); num_groups];
-                    for (idx, &group_idx) in group_indices.iter().enumerate() {
-                        if arr.is_valid(idx) {
-                            group_rows[group_idx].push(arr.value(idx));
-                        }
-                    }
-                    let group_arrays: Vec<ArrayRef> = group_rows
-                        .iter()
-                        .map(|rows| Arc::new(Int32Array::from(rows.clone())) as ArrayRef)
-                        .collect();
-
-                    c.bench_function(&format!("count_distinct_groups {name}"), |b| {
-                        b.iter(|| {
-                            let mut accumulators: Vec<_> = (0..num_groups)
-                                .map(|_| prepare_accumulator(DataType::Int32))
-                                .collect();
-
-                            for (group_idx, batch) in group_arrays.iter().enumerate() {
-                                if !batch.is_empty() {
-                                    accumulators[group_idx]
-                                        .update_batch(std::slice::from_ref(batch))
-                                        .unwrap();
-                                }
-                            }
-
-                            let _results: Vec<_> = accumulators
-                                .iter_mut()
-                                .map(|acc| acc.evaluate().unwrap())
-                                .collect();
-                        })
-                    });
-                }
-            }
-        }
-    }
-
-    // u32 benchmarks
-    for num_groups in group_counts {
-        for (card_name, distinct_pct) in cardinalities {
-            for dist in distributions {
-                let name = format!("u32_g{num_groups}_{card_name}_{dist}");
-                let n_distinct = BATCH_SIZE * distinct_pct / 100;
-                let values = Arc::new(create_u32_array(n_distinct)) as ArrayRef;
-                let group_indices = if dist == "uniform" {
-                    create_uniform_groups(num_groups)
-                } else {
-                    create_skewed_groups(num_groups)
-                };
-
-                let (_schema, args) = prepare_args(DataType::UInt32);
-
-                if count_fn.groups_accumulator_supported(args.clone()) {
-                    c.bench_function(&format!("count_distinct_groups {name}"), |b| {
-                        b.iter(|| {
-                            let mut acc =
-                                count_fn.create_groups_accumulator(args.clone()).unwrap();
-                            acc.update_batch(
-                                std::slice::from_ref(&values),
-                                &group_indices,
-                                None,
-                                num_groups,
-                            )
-                            .unwrap();
-                            acc.evaluate(EmitTo::All).unwrap()
-                        })
-                    });
-                } else {
-                    let arr = values.as_any().downcast_ref::<UInt32Array>().unwrap();
-                    let mut group_rows: Vec<Vec<u32>> = vec![Vec::new(); num_groups];
-                    for (idx, &group_idx) in group_indices.iter().enumerate() {
-                        if arr.is_valid(idx) {
-                            group_rows[group_idx].push(arr.value(idx));
-                        }
-                    }
-                    let group_arrays: Vec<ArrayRef> = group_rows
-                        .iter()
-                        .map(|rows| Arc::new(UInt32Array::from(rows.clone())) as ArrayRef)
-                        .collect();
-
-                    c.bench_function(&format!("count_distinct_groups {name}"), |b| {
-                        b.iter(|| {
-                            let mut accumulators: Vec<_> = (0..num_groups)
-                                .map(|_| prepare_accumulator(DataType::UInt32))
-                                .collect();
-
-                            for (group_idx, batch) in group_arrays.iter().enumerate() {
-                                if !batch.is_empty() {
-                                    accumulators[group_idx]
-                                        .update_batch(std::slice::from_ref(batch))
-                                        .unwrap();
-                                }
-                            }
-
-                            let _results: Vec<_> = accumulators
-                                .iter_mut()
-                                .map(|acc| acc.evaluate().unwrap())
-                                .collect();
-                        })
-                    });
-                }
-            }
+                })
+            });
         }
     }
 }
 
-criterion_group!(
-    benches,
-    count_distinct_benchmark,
-    count_distinct_groups_benchmark
-);
+criterion_group!(benches, count_distinct_benchmark, count_distinct_groups_benchmark);
 criterion_main!(benches);
