@@ -228,8 +228,13 @@ fn count_distinct_groups_benchmark(c: &mut Criterion) {
                 b.iter(|| {
                     let (_schema, args) = prepare_args(DataType::Int64);
                     let mut acc = count_fn.create_groups_accumulator(args).unwrap();
-                    acc.update_batch(&[values.clone()], &group_indices, None, num_groups)
-                        .unwrap();
+                    acc.update_batch(
+                        std::slice::from_ref(&values),
+                        &group_indices,
+                        None,
+                        num_groups,
+                    )
+                    .unwrap();
                     acc.evaluate(EmitTo::All).unwrap()
                 })
             });
