@@ -261,5 +261,9 @@ fn count_distinct_groups_benchmark(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, count_distinct_benchmark, count_distinct_groups_benchmark);
+criterion_group!(
+    benches,
+    count_distinct_benchmark,
+    count_distinct_groups_benchmark
+);
 criterion_main!(benches);
