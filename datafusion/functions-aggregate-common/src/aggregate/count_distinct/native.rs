@@ -78,6 +78,7 @@ where
         ])
     }
 
+    #[inline(never)]
     fn update_batch(&mut self, values: &[ArrayRef]) -> datafusion_common::Result<()> {
         if values.is_empty() {
             return Ok(());
@@ -149,6 +150,7 @@ impl<T: ArrowPrimitiveType + Debug> Accumulator for FloatDistinctCountAccumulato
         self.values.state()
     }
 
+    #[inline(never)]
     fn update_batch(&mut self, values: &[ArrayRef]) -> datafusion_common::Result<()> {
         self.values.update_batch(values)
     }

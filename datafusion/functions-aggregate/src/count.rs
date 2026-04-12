@@ -30,7 +30,7 @@ use arrow::{
 };
 use datafusion_common::hash_utils::RandomState;
 use datafusion_common::{
-    HashMap, Result, ScalarValue, downcast_value, internal_err, not_impl_err,
+    HashMap, Result, ScalarValue, downcast_value, exec_err, internal_err, not_impl_err,
     stats::Precision, utils::expr::COUNT_STAR_EXPANSION,
 };
 use datafusion_expr::{
@@ -174,11 +174,6 @@ impl Count {
 }
 fn get_count_accumulator(data_type: &DataType) -> Box<dyn Accumulator> {
     match data_type {
-        // Optimized bitmap/bool array accumulators for small integer types
-        DataType::UInt8 => Box::new(BoolArray256DistinctCountAccumulator::new()),
-        DataType::Int8 => Box::new(BoolArray256DistinctCountAccumulatorI8::new()),
-        DataType::UInt16 => Box::new(Bitmap65536DistinctCountAccumulator::new()),
-        DataType::Int16 => Box::new(Bitmap65536DistinctCountAccumulatorI16::new()),
         // HashSet-based accumulator for larger integer types
         DataType::Int32 => Box::new(PrimitiveDistinctCountAccumulator::<Int32Type>::new(
             data_type,
@@ -192,6 +187,10 @@ fn get_count_accumulator(data_type: &DataType) -> Box<dyn Accumulator> {
         DataType::UInt64 => Box::new(
             PrimitiveDistinctCountAccumulator::<UInt64Type>::new(data_type),
         ),
+        // Small int types - cold path
+        DataType::UInt8 | DataType::Int8 | DataType::UInt16 | DataType::Int16 => {
+            get_small_int_accumulator(data_type).unwrap()
+        }
         DataType::Decimal128(_, _) => Box::new(PrimitiveDistinctCountAccumulator::<
             Decimal128Type,
         >::new(data_type)),
@@ -264,6 +263,18 @@ fn get_count_accumulator(data_type: &DataType) -> Box<dyn Accumulator> {
             values: HashSet::default(),
             state_data_type: data_type.clone(),
         }),
+    }
+}
+
+/// Uses optimized bitmap accumulators but separated to keep hot path small
+#[cold]
+fn get_small_int_accumulator(data_type: &DataType) -> Result<Box<dyn Accumulator>> {
+    match data_type {
+        DataType::UInt8 => Ok(Box::new(BoolArray256DistinctCountAccumulator::new())),
+        DataType::Int8 => Ok(Box::new(BoolArray256DistinctCountAccumulatorI8::new())),
+        DataType::UInt16 => Ok(Box::new(Bitmap65536DistinctCountAccumulator::new())),
+        DataType::Int16 => Ok(Box::new(Bitmap65536DistinctCountAccumulatorI16::new())),
+        _ => exec_err!("unsupported accumulator for datatype: {}", data_type),
     }
 }
 
