@@ -224,11 +224,10 @@ fn count_distinct_groups_benchmark(c: &mut Criterion) {
         let (_schema, args) = prepare_args(DataType::Int64);
 
         if count_fn.groups_accumulator_supported(args.clone()) {
-<<<<<<< Updated upstream
             c.bench_function(&format!("count_distinct_groups {name}"), |b| {
                 b.iter(|| {
-                    let (_schema, args) = prepare_args(DataType::Int64);
-                    let mut acc = count_fn.create_groups_accumulator(args).unwrap();
+                    let mut acc =
+                        count_fn.create_groups_accumulator(args.clone()).unwrap();
                     acc.update_batch(
                         std::slice::from_ref(&values),
                         &group_indices,
@@ -239,25 +238,6 @@ fn count_distinct_groups_benchmark(c: &mut Criterion) {
                     acc.evaluate(EmitTo::All).unwrap()
                 })
             });
-=======
-            c.bench_function(
-                &format!("count_distinct_groups i64 {num_groups} groups"),
-                |b| {
-                    b.iter(|| {
-                        let mut acc =
-                            count_fn.create_groups_accumulator(args.clone()).unwrap();
-                        acc.update_batch(
-                            std::slice::from_ref(&values),
-                            &group_indices,
-                            None,
-                            num_groups,
-                        )
-                        .unwrap();
-                        acc.evaluate(EmitTo::All).unwrap()
-                    })
-                },
-            );
->>>>>>> Stashed changes
         } else {
             c.bench_function(&format!("count_distinct_groups {name}"), |b| {
                 b.iter(|| {
