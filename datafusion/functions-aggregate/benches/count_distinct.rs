@@ -200,77 +200,74 @@ fn create_skewed_groups(num_groups: usize) -> Vec<usize> {
 fn count_distinct_groups_benchmark(c: &mut Criterion) {
     let count_fn = Count::new();
 
-    // bench different scenarios
-    let scenarios = [
-        // (name, num_groups, distinct_pct, group_fn)
-        ("sparse_uniform", 10, 80, "uniform"),
-        ("moderate_uniform", 100, 80, "uniform"),
-        ("dense_uniform", 1000, 80, "uniform"),
-        ("sparse_skewed", 10, 80, "skewed"),
-        ("dense_skewed", 1000, 80, "skewed"),
-        ("sparse_high_cardinality", 10, 99, "uniform"),
-        ("dense_low_cardinality", 1000, 20, "uniform"),
-    ];
+    let group_counts = [100, 1000, 10000];
+    let cardinalities = [("low", 20), ("mid", 80), ("high", 99)];
+    let distributions = ["uniform", "skewed"];
 
-    for (name, num_groups, distinct_pct, group_type) in scenarios {
-        let n_distinct = BATCH_SIZE * distinct_pct / 100;
-        let values = Arc::new(create_i64_array(n_distinct)) as ArrayRef;
-        let group_indices = if group_type == "uniform" {
-            create_uniform_groups(num_groups)
-        } else {
-            create_skewed_groups(num_groups)
-        };
+    for num_groups in group_counts {
+        for (card_name, distinct_pct) in cardinalities {
+            for dist in distributions {
+                let name = format!("g{num_groups}_{card_name}_{dist}");
+                let n_distinct = BATCH_SIZE * distinct_pct / 100;
+                let values = Arc::new(create_i64_array(n_distinct)) as ArrayRef;
+                let group_indices = if dist == "uniform" {
+                    create_uniform_groups(num_groups)
+                } else {
+                    create_skewed_groups(num_groups)
+                };
 
-        let (_schema, args) = prepare_args(DataType::Int64);
+                let (_schema, args) = prepare_args(DataType::Int64);
 
-        if count_fn.groups_accumulator_supported(args.clone()) {
-            c.bench_function(&format!("count_distinct_groups {name}"), |b| {
-                b.iter(|| {
-                    let mut acc =
-                        count_fn.create_groups_accumulator(args.clone()).unwrap();
-                    acc.update_batch(
-                        std::slice::from_ref(&values),
-                        &group_indices,
-                        None,
-                        num_groups,
-                    )
-                    .unwrap();
-                    acc.evaluate(EmitTo::All).unwrap()
-                })
-            });
-        } else {
-            let arr = values.as_any().downcast_ref::<Int64Array>().unwrap();
-            let mut group_rows: Vec<Vec<i64>> = vec![Vec::new(); num_groups];
-            for (idx, &group_idx) in group_indices.iter().enumerate() {
-                if arr.is_valid(idx) {
-                    group_rows[group_idx].push(arr.value(idx));
-                }
-            }
-            let group_arrays: Vec<ArrayRef> = group_rows
-                .iter()
-                .map(|rows| Arc::new(Int64Array::from(rows.clone())) as ArrayRef)
-                .collect();
-
-            c.bench_function(&format!("count_distinct_groups {name}"), |b| {
-                b.iter(|| {
-                    let mut accumulators: Vec<_> = (0..num_groups)
-                        .map(|_| prepare_accumulator(DataType::Int64))
-                        .collect();
-
-                    for (group_idx, batch) in group_arrays.iter().enumerate() {
-                        if !batch.is_empty() {
-                            accumulators[group_idx]
-                                .update_batch(std::slice::from_ref(batch))
-                                .unwrap();
+                if count_fn.groups_accumulator_supported(args.clone()) {
+                    c.bench_function(&format!("count_distinct_groups {name}"), |b| {
+                        b.iter(|| {
+                            let mut acc =
+                                count_fn.create_groups_accumulator(args.clone()).unwrap();
+                            acc.update_batch(
+                                std::slice::from_ref(&values),
+                                &group_indices,
+                                None,
+                                num_groups,
+                            )
+                            .unwrap();
+                            acc.evaluate(EmitTo::All).unwrap()
+                        })
+                    });
+                } else {
+                    let arr = values.as_any().downcast_ref::<Int64Array>().unwrap();
+                    let mut group_rows: Vec<Vec<i64>> = vec![Vec::new(); num_groups];
+                    for (idx, &group_idx) in group_indices.iter().enumerate() {
+                        if arr.is_valid(idx) {
+                            group_rows[group_idx].push(arr.value(idx));
                         }
                     }
-
-                    let _results: Vec<_> = accumulators
-                        .iter_mut()
-                        .map(|acc| acc.evaluate().unwrap())
+                    let group_arrays: Vec<ArrayRef> = group_rows
+                        .iter()
+                        .map(|rows| Arc::new(Int64Array::from(rows.clone())) as ArrayRef)
                         .collect();
-                })
-            });
+
+                    c.bench_function(&format!("count_distinct_groups {name}"), |b| {
+                        b.iter(|| {
+                            let mut accumulators: Vec<_> = (0..num_groups)
+                                .map(|_| prepare_accumulator(DataType::Int64))
+                                .collect();
+
+                            for (group_idx, batch) in group_arrays.iter().enumerate() {
+                                if !batch.is_empty() {
+                                    accumulators[group_idx]
+                                        .update_batch(std::slice::from_ref(batch))
+                                        .unwrap();
+                                }
+                            }
+
+                            let _results: Vec<_> = accumulators
+                                .iter_mut()
+                                .map(|acc| acc.evaluate().unwrap())
+                                .collect();
+                        })
+                    });
+                }
+            }
         }
     }
 }
