@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use arrow::array::{
-    ArrayRef, Int8Array, Int16Array, Int64Array, UInt8Array, UInt16Array,
+    Array, ArrayRef, Int8Array, Int16Array, Int64Array, UInt8Array, UInt16Array,
 };
 use arrow::datatypes::{DataType, Field, Schema};
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -258,7 +258,7 @@ fn count_distinct_groups_benchmark(c: &mut Criterion) {
                         .collect();
 
                     for (group_idx, batch) in group_arrays.iter().enumerate() {
-                        if batch.len() > 0 {
+                        if !batch.is_empty() {
                             accumulators[group_idx]
                                 .update_batch(std::slice::from_ref(batch))
                                 .unwrap();
