@@ -371,7 +371,7 @@ impl AggregateUDFImpl for Count {
         if !args.is_distinct {
             return Ok(Box::new(CountGroupsAccumulator::new()));
         }
-        create_distinct_count_groups_accumulator(args)
+        create_distinct_count_groups_accumulator(&args)
     }
 
     fn reverse_expr(&self) -> ReversedUDAF {
@@ -446,34 +446,34 @@ impl AggregateUDFImpl for Count {
 
 #[cold]
 fn create_distinct_count_groups_accumulator(
-    args: AccumulatorArgs,
+    args: &AccumulatorArgs,
 ) -> Result<Box<dyn GroupsAccumulator>> {
     let data_type = args.expr_fields[0].data_type();
     match data_type {
         DataType::Int8 => Ok(Box::new(
             PrimitiveDistinctCountGroupsAccumulator::<Int8Type>::new(),
         )),
-        DataType::Int16 => Ok(Box::new(
-            PrimitiveDistinctCountGroupsAccumulator::<Int16Type>::new(),
-        )),
-        DataType::Int32 => Ok(Box::new(
-            PrimitiveDistinctCountGroupsAccumulator::<Int32Type>::new(),
-        )),
-        DataType::Int64 => Ok(Box::new(
-            PrimitiveDistinctCountGroupsAccumulator::<Int64Type>::new(),
-        )),
-        DataType::UInt8 => Ok(Box::new(
-            PrimitiveDistinctCountGroupsAccumulator::<UInt8Type>::new(),
-        )),
-        DataType::UInt16 => Ok(Box::new(
-            PrimitiveDistinctCountGroupsAccumulator::<UInt16Type>::new(),
-        )),
-        DataType::UInt32 => Ok(Box::new(
-            PrimitiveDistinctCountGroupsAccumulator::<UInt32Type>::new(),
-        )),
-        DataType::UInt64 => Ok(Box::new(
-            PrimitiveDistinctCountGroupsAccumulator::<UInt64Type>::new(),
-        )),
+        DataType::Int16 => Ok(Box::new(PrimitiveDistinctCountGroupsAccumulator::<
+            Int16Type,
+        >::new())),
+        DataType::Int32 => Ok(Box::new(PrimitiveDistinctCountGroupsAccumulator::<
+            Int32Type,
+        >::new())),
+        DataType::Int64 => Ok(Box::new(PrimitiveDistinctCountGroupsAccumulator::<
+            Int64Type,
+        >::new())),
+        DataType::UInt8 => Ok(Box::new(PrimitiveDistinctCountGroupsAccumulator::<
+            UInt8Type,
+        >::new())),
+        DataType::UInt16 => Ok(Box::new(PrimitiveDistinctCountGroupsAccumulator::<
+            UInt16Type,
+        >::new())),
+        DataType::UInt32 => Ok(Box::new(PrimitiveDistinctCountGroupsAccumulator::<
+            UInt32Type,
+        >::new())),
+        DataType::UInt64 => Ok(Box::new(PrimitiveDistinctCountGroupsAccumulator::<
+            UInt64Type,
+        >::new())),
         _ => not_impl_err!(
             "GroupsAccumulator not supported for COUNT(DISTINCT) with {}",
             data_type
