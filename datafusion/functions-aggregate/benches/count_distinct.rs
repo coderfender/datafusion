@@ -239,19 +239,28 @@ fn count_distinct_groups_benchmark(c: &mut Criterion) {
                 })
             });
         } else {
+            let arr = values.as_any().downcast_ref::<Int64Array>().unwrap();
+            let mut group_rows: Vec<Vec<i64>> = vec![Vec::new(); num_groups];
+            for (idx, &group_idx) in group_indices.iter().enumerate() {
+                if arr.is_valid(idx) {
+                    group_rows[group_idx].push(arr.value(idx));
+                }
+            }
+            let group_arrays: Vec<ArrayRef> = group_rows
+                .iter()
+                .map(|rows| Arc::new(Int64Array::from(rows.clone())) as ArrayRef)
+                .collect();
+
             c.bench_function(&format!("count_distinct_groups {name}"), |b| {
                 b.iter(|| {
                     let mut accumulators: Vec<_> = (0..num_groups)
                         .map(|_| prepare_accumulator(DataType::Int64))
                         .collect();
 
-                    let arr = values.as_any().downcast_ref::<Int64Array>().unwrap();
-                    for (idx, group_idx) in group_indices.iter().enumerate() {
-                        if let Some(val) = arr.value(idx).into() {
-                            let single_val =
-                                Arc::new(Int64Array::from(vec![Some(val)])) as ArrayRef;
-                            accumulators[*group_idx]
-                                .update_batch(std::slice::from_ref(&single_val))
+                    for (group_idx, batch) in group_arrays.iter().enumerate() {
+                        if batch.len() > 0 {
+                            accumulators[group_idx]
+                                .update_batch(std::slice::from_ref(batch))
                                 .unwrap();
                         }
                     }
