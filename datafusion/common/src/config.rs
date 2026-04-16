@@ -1087,6 +1087,15 @@ config_namespace! {
         /// past window functions, if possible
         pub enable_window_limits: bool, default = true
 
+        /// When set to true, the optimizer will replace
+        /// Filter(rn<=K) → Window(ROW_NUMBER) → Sort patterns with a
+        /// PartitionedTopKExec that maintains per-partition heaps, avoiding
+        /// a full sort of the input.
+        /// When the window partition key has low cardinality, enabling this optimization
+        /// can improve performance. However, for high cardinality keys, it may
+        /// cause regressions in both memory usage and runtime.
+        pub enable_window_topn: bool, default = false
+
         /// When set to true, the optimizer will push TopK (Sort with fetch)
         /// below hash repartition when the partition key is a prefix of the
         /// sort key, reducing data volume before the shuffle.
@@ -1243,6 +1252,12 @@ config_namespace! {
         /// input reordering is disabled and the original join order in the
         /// query is used.
         pub join_reordering: bool, default = true
+
+        /// When set to true, the physical plan optimizer uses the pluggable
+        /// `StatisticsRegistry` for statistics propagation across operators.
+        /// This enables more accurate cardinality estimates compared to each
+        /// operator's built-in `partition_statistics`.
+        pub use_statistics_registry: bool, default = false
 
         /// When set to true, the physical plan optimizer will prefer HashJoin over SortMergeJoin.
         /// HashJoin can work more efficiently than SortMergeJoin but consumes more memory
