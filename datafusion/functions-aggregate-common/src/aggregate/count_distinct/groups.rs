@@ -34,7 +34,7 @@ where
     T::Native: Eq + Hash,
 {
     seen: HashSet<(usize, T::Native), RandomState>,
-    num_groups: usize,
+    counts: Vec<i64>,
 }
 
 impl<T: ArrowPrimitiveType> PrimitiveDistinctCountGroupsAccumulator<T>
@@ -44,7 +44,7 @@ where
     pub fn new() -> Self {
         Self {
             seen: HashSet::default(),
-            num_groups: 0,
+            counts: Vec::new(),
         }
     }
 }
@@ -71,39 +71,32 @@ where
         total_num_groups: usize,
     ) -> datafusion_common::Result<()> {
         debug_assert_eq!(values.len(), 1);
-        self.num_groups = self.num_groups.max(total_num_groups);
+        self.counts.resize(total_num_groups, 0);
         let arr = values[0].as_primitive::<T>();
         accumulate(group_indices, arr, opt_filter, |group_idx, value| {
-            self.seen.insert((group_idx, value));
+            if self.seen.insert((group_idx, value)) {
+                self.counts[group_idx] += 1;
+            }
         });
         Ok(())
     }
 
     fn evaluate(&mut self, emit_to: EmitTo) -> datafusion_common::Result<ArrayRef> {
-        let num_emitted = match emit_to {
-            EmitTo::All => self.num_groups,
-            EmitTo::First(n) => n,
-        };
+        let counts = emit_to.take_needed(&mut self.counts);
 
-        let mut counts = vec![0i64; num_emitted];
-
-        if matches!(emit_to, EmitTo::All) {
-            for &(group_idx, _) in self.seen.iter() {
-                counts[group_idx] += 1;
+        match emit_to {
+            EmitTo::All => {
+                self.seen.clear();
             }
-            self.seen.clear();
-            self.num_groups = 0;
-        } else {
-            let mut remaining = HashSet::default();
-            for (group_idx, value) in self.seen.drain() {
-                if group_idx < num_emitted {
-                    counts[group_idx] += 1;
-                } else {
-                    remaining.insert((group_idx - num_emitted, value));
+            EmitTo::First(n) => {
+                let mut remaining = HashSet::default();
+                for (group_idx, value) in self.seen.drain() {
+                    if group_idx >= n {
+                        remaining.insert((group_idx - n, value));
+                    }
                 }
+                self.seen = remaining;
             }
-            self.seen = remaining;
-            self.num_groups = self.num_groups.saturating_sub(num_emitted);
         }
 
         Ok(Arc::new(Int64Array::from(counts)))
@@ -111,7 +104,7 @@ where
 
     fn state(&mut self, emit_to: EmitTo) -> datafusion_common::Result<Vec<ArrayRef>> {
         let num_emitted = match emit_to {
-            EmitTo::All => self.num_groups,
+            EmitTo::All => self.counts.len(),
             EmitTo::First(n) => n,
         };
 
@@ -121,7 +114,7 @@ where
             for (group_idx, value) in self.seen.drain() {
                 group_values[group_idx].push(value);
             }
-            self.num_groups = 0;
+            self.counts.clear();
         } else {
             let mut remaining = HashSet::default();
             for (group_idx, value) in self.seen.drain() {
@@ -132,7 +125,7 @@ where
                 }
             }
             self.seen = remaining;
-            self.num_groups = self.num_groups.saturating_sub(num_emitted);
+            let _ = emit_to.take_needed(&mut self.counts);
         }
 
         let mut offsets = vec![0i32];
@@ -161,14 +154,16 @@ where
         total_num_groups: usize,
     ) -> datafusion_common::Result<()> {
         debug_assert_eq!(values.len(), 1);
-        self.num_groups = self.num_groups.max(total_num_groups);
+        self.counts.resize(total_num_groups, 0);
         let list_array = values[0].as_list::<i32>();
 
-        for (row_idx, group_idx) in group_indices.iter().enumerate() {
+        for (row_idx, &group_idx) in group_indices.iter().enumerate() {
             let inner = list_array.value(row_idx);
             let inner_arr = inner.as_primitive::<T>();
-            for value in inner_arr.values().iter() {
-                self.seen.insert((*group_idx, *value));
+            for &value in inner_arr.values().iter() {
+                if self.seen.insert((group_idx, value)) {
+                    self.counts[group_idx] += 1;
+                }
             }
         }
 
@@ -178,5 +173,6 @@ where
     fn size(&self) -> usize {
         size_of::<Self>()
             + self.seen.capacity() * (size_of::<(usize, T::Native)>() + size_of::<u64>())
+            + self.counts.capacity() * size_of::<i64>()
     }
 }
