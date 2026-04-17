@@ -21,11 +21,11 @@ use arrow::{
     compute,
     datatypes::{
         DataType, Date32Type, Date64Type, Decimal128Type, Decimal256Type, Field,
-        FieldRef, Float16Type, Float32Type, Float64Type, Int32Type, Int64Type,
-        Time32MillisecondType, Time32SecondType, Time64MicrosecondType,
+        FieldRef, Float16Type, Float32Type, Float64Type, Int8Type, Int16Type, Int32Type,
+        Int64Type, Time32MillisecondType, Time32SecondType, Time64MicrosecondType,
         Time64NanosecondType, TimeUnit, TimestampMicrosecondType,
         TimestampMillisecondType, TimestampNanosecondType, TimestampSecondType,
-        UInt32Type, UInt64Type,
+        UInt8Type, UInt16Type, UInt32Type, UInt64Type,
     },
 };
 use datafusion_common::hash_utils::RandomState;
