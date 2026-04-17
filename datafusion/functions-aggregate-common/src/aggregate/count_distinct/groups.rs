@@ -163,11 +163,14 @@ where
         debug_assert_eq!(values.len(), 1);
         self.counts.resize(total_num_groups, 0);
         let list_array = values[0].as_list::<i32>();
+        let inner = list_array.values().as_primitive::<T>();
+        let inner_values = inner.values();
+        let offsets = list_array.offsets();
 
         for (row_idx, &group_idx) in group_indices.iter().enumerate() {
-            let inner = list_array.value(row_idx);
-            let inner_arr = inner.as_primitive::<T>();
-            for &value in inner_arr.values().iter() {
+            let start = offsets[row_idx] as usize;
+            let end = offsets[row_idx + 1] as usize;
+            for &value in &inner_values[start..end] {
                 if self.seen.insert((group_idx, value)) {
                     self.counts[group_idx] += 1;
                 }
