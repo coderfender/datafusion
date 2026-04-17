@@ -108,31 +108,38 @@ where
             EmitTo::First(n) => n,
         };
 
-        let mut group_values: Vec<Vec<T::Native>> = vec![Vec::new(); num_emitted];
+        // Prefix-sum counts[..num_emitted] into offsets
+        let mut offsets = Vec::with_capacity(num_emitted + 1);
+        offsets.push(0i32);
+        let mut total = 0i32;
+        for &c in &self.counts[..num_emitted] {
+            total += c as i32;
+            offsets.push(total);
+        }
+
+        let mut all_values = vec![T::Native::default(); total as usize];
+        let mut cursors: Vec<i32> = offsets[..num_emitted].to_vec();
 
         if matches!(emit_to, EmitTo::All) {
             for (group_idx, value) in self.seen.drain() {
-                group_values[group_idx].push(value);
+                let pos = cursors[group_idx] as usize;
+                all_values[pos] = value;
+                cursors[group_idx] += 1;
             }
             self.counts.clear();
         } else {
             let mut remaining = HashSet::default();
             for (group_idx, value) in self.seen.drain() {
                 if group_idx < num_emitted {
-                    group_values[group_idx].push(value);
+                    let pos = cursors[group_idx] as usize;
+                    all_values[pos] = value;
+                    cursors[group_idx] += 1;
                 } else {
                     remaining.insert((group_idx - num_emitted, value));
                 }
             }
             self.seen = remaining;
             let _ = emit_to.take_needed(&mut self.counts);
-        }
-
-        let mut offsets = vec![0i32];
-        let mut all_values = Vec::new();
-        for values in &group_values {
-            all_values.extend(values.iter().copied());
-            offsets.push(all_values.len() as i32);
         }
 
         let values_array = Arc::new(PrimitiveArray::<T>::from_iter_values(all_values));
