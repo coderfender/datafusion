@@ -411,24 +411,56 @@ impl AggregateUDFImpl for ApproxDistinct {
     }
 
     fn state_fields(&self, args: StateFieldsArgs) -> Result<Vec<FieldRef>> {
-        if args.input_fields[0].data_type().is_null() {
-            Ok(vec![
+        let data_type = args.input_fields[0].data_type();
+        match data_type {
+            DataType::Null => Ok(vec![
                 Field::new(
                     format_state_name(args.name, self.name()),
                     DataType::Null,
                     true,
                 )
                 .into(),
-            ])
-        } else {
-            Ok(vec![
+            ]),
+            DataType::UInt8 => Ok(vec![
+                Field::new_list(
+                    format_state_name(args.name, "approx_distinct"),
+                    Field::new_list_field(DataType::UInt8, true),
+                    false,
+                )
+                .into(),
+            ]),
+            DataType::Int8 => Ok(vec![
+                Field::new_list(
+                    format_state_name(args.name, "approx_distinct"),
+                    Field::new_list_field(DataType::Int8, true),
+                    false,
+                )
+                .into(),
+            ]),
+            DataType::UInt16 => Ok(vec![
+                Field::new_list(
+                    format_state_name(args.name, "approx_distinct"),
+                    Field::new_list_field(DataType::UInt16, true),
+                    false,
+                )
+                .into(),
+            ]),
+            DataType::Int16 => Ok(vec![
+                Field::new_list(
+                    format_state_name(args.name, "approx_distinct"),
+                    Field::new_list_field(DataType::Int16, true),
+                    false,
+                )
+                .into(),
+            ]),
+            _ => Ok(vec![
                 Field::new(
                     format_state_name(args.name, "hll_registers"),
                     DataType::Binary,
                     false,
                 )
                 .into(),
-            ])
+            ]),
         }
     }
 
