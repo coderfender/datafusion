@@ -397,6 +397,39 @@ impl ApproxDistinct {
     }
 }
 
+#[cold]
+fn get_small_int_approx_accumulator(
+    data_type: &DataType,
+) -> Result<Box<dyn Accumulator>> {
+    match data_type {
+        DataType::UInt8 => Ok(Box::new(ApproxDistinctBitmapWrapper {
+            inner: BoolArray256DistinctCountAccumulator::new(),
+        })),
+        DataType::Int8 => Ok(Box::new(ApproxDistinctBitmapWrapper {
+            inner: BoolArray256DistinctCountAccumulatorI8::new(),
+        })),
+        DataType::UInt16 => Ok(Box::new(ApproxDistinctBitmapWrapper {
+            inner: Bitmap65536DistinctCountAccumulator::new(),
+        })),
+        DataType::Int16 => Ok(Box::new(ApproxDistinctBitmapWrapper {
+            inner: Bitmap65536DistinctCountAccumulatorI16::new(),
+        })),
+        _ => internal_err!("unsupported small int type: {}", data_type),
+    }
+}
+
+#[cold]
+fn get_small_int_state_field(name: &str, data_type: &DataType) -> Result<Vec<FieldRef>> {
+    Ok(vec![
+        Field::new_list(
+            format_state_name(name, "approx_distinct"),
+            Field::new_list_field(data_type.clone(), true),
+            false,
+        )
+        .into(),
+    ])
+}
+
 impl AggregateUDFImpl for ApproxDistinct {
     fn name(&self) -> &str {
         "approx_distinct"
@@ -421,38 +454,9 @@ impl AggregateUDFImpl for ApproxDistinct {
                 )
                 .into(),
             ]),
-            DataType::UInt8 => Ok(vec![
-                Field::new_list(
-                    format_state_name(args.name, "approx_distinct"),
-                    Field::new_list_field(DataType::UInt8, true),
-                    false,
-                )
-                .into(),
-            ]),
-            DataType::Int8 => Ok(vec![
-                Field::new_list(
-                    format_state_name(args.name, "approx_distinct"),
-                    Field::new_list_field(DataType::Int8, true),
-                    false,
-                )
-                .into(),
-            ]),
-            DataType::UInt16 => Ok(vec![
-                Field::new_list(
-                    format_state_name(args.name, "approx_distinct"),
-                    Field::new_list_field(DataType::UInt16, true),
-                    false,
-                )
-                .into(),
-            ]),
-            DataType::Int16 => Ok(vec![
-                Field::new_list(
-                    format_state_name(args.name, "approx_distinct"),
-                    Field::new_list_field(DataType::Int16, true),
-                    false,
-                )
-                .into(),
-            ]),
+            DataType::UInt8 | DataType::Int8 | DataType::UInt16 | DataType::Int16 => {
+                get_small_int_state_field(args.name, data_type)
+            }
             _ => Ok(vec![
                 Field::new(
                     format_state_name(args.name, "hll_registers"),
@@ -468,21 +472,11 @@ impl AggregateUDFImpl for ApproxDistinct {
         let data_type = acc_args.expr_fields[0].data_type();
 
         let accumulator: Box<dyn Accumulator> = match data_type {
-            // Use bitmap accumulators for small integer types
-            DataType::UInt8 => Box::new(ApproxDistinctBitmapWrapper {
-                inner: BoolArray256DistinctCountAccumulator::new(),
-            }),
-            DataType::UInt16 => Box::new(ApproxDistinctBitmapWrapper {
-                inner: Bitmap65536DistinctCountAccumulator::new(),
-            }),
+            DataType::UInt8 | DataType::Int8 | DataType::UInt16 | DataType::Int16 => {
+                return get_small_int_approx_accumulator(data_type);
+            }
             DataType::UInt32 => Box::new(NumericHLLAccumulator::<UInt32Type>::new()),
             DataType::UInt64 => Box::new(NumericHLLAccumulator::<UInt64Type>::new()),
-            DataType::Int8 => Box::new(ApproxDistinctBitmapWrapper {
-                inner: BoolArray256DistinctCountAccumulatorI8::new(),
-            }),
-            DataType::Int16 => Box::new(ApproxDistinctBitmapWrapper {
-                inner: Bitmap65536DistinctCountAccumulatorI16::new(),
-            }),
             DataType::Int32 => Box::new(NumericHLLAccumulator::<Int32Type>::new()),
             DataType::Int64 => Box::new(NumericHLLAccumulator::<Int64Type>::new()),
             DataType::Date32 => Box::new(NumericHLLAccumulator::<Date32Type>::new()),
