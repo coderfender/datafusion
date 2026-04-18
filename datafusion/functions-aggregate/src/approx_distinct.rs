@@ -18,7 +18,7 @@
 //! Defines physical expressions that can evaluated at runtime during query execution
 
 use crate::hyperloglog::{HLL_HASH_STATE, HyperLogLog};
-use arrow::array::{Array, BinaryArray, BooleanArray, StringViewArray};
+use arrow::array::{Array, BinaryArray, StringViewArray};
 use arrow::array::{
     GenericBinaryArray, GenericStringArray, OffsetSizeTrait, PrimitiveArray,
 };
@@ -48,7 +48,6 @@ use datafusion_macros::user_doc;
 use std::fmt::{Debug, Formatter};
 use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
-use std::mem::size_of_val;
 
 make_udaf_expr_and_func!(
     ApproxDistinct,
@@ -303,67 +302,6 @@ impl Debug for ApproxDistinct {
     }
 }
 
-/// Optimized accumulator for Boolean type - only 2 possible distinct values.
-#[derive(Debug)]
-struct BoolDistinctAccumulator {
-    seen_true: bool,
-    seen_false: bool,
-}
-
-impl BoolDistinctAccumulator {
-    fn new() -> Self {
-        Self {
-            seen_true: false,
-            seen_false: false,
-        }
-    }
-}
-
-impl Accumulator for BoolDistinctAccumulator {
-    fn update_batch(&mut self, values: &[ArrayRef]) -> Result<()> {
-        if values.is_empty() {
-            return Ok(());
-        }
-
-        let array: &BooleanArray = downcast_value!(values[0], BooleanArray);
-        for value in array.iter().flatten() {
-            if value {
-                self.seen_true = true;
-            } else {
-                self.seen_false = true;
-            }
-        }
-        Ok(())
-    }
-
-    fn evaluate(&mut self) -> Result<ScalarValue> {
-        let count = self.seen_true as u64 + self.seen_false as u64;
-        Ok(ScalarValue::UInt64(Some(count)))
-    }
-
-    fn size(&self) -> usize {
-        size_of_val(self)
-    }
-
-    fn state(&mut self) -> Result<Vec<ScalarValue>> {
-        // State: two booleans packed into a binary
-        let state = vec![self.seen_false as u8, self.seen_true as u8];
-        Ok(vec![ScalarValue::Binary(Some(state))])
-    }
-
-    fn merge_batch(&mut self, states: &[ArrayRef]) -> Result<()> {
-        assert_eq!(1, states.len(), "expect only 1 element in the states");
-        let binary_array = downcast_value!(states[0], BinaryArray);
-        for v in binary_array.iter().flatten() {
-            if v.len() >= 2 {
-                self.seen_false = self.seen_false || v[0] != 0;
-                self.seen_true = self.seen_true || v[1] != 0;
-            }
-        }
-        Ok(())
-    }
-}
-
 impl Default for ApproxDistinct {
     fn default() -> Self {
         Self::new()
@@ -510,7 +448,6 @@ impl AggregateUDFImpl for ApproxDistinct {
             DataType::Utf8View => Box::new(StringViewHLLAccumulator::new()),
             DataType::Binary => Box::new(BinaryHLLAccumulator::<i32>::new()),
             DataType::LargeBinary => Box::new(BinaryHLLAccumulator::<i64>::new()),
-            DataType::Boolean => Box::new(BoolDistinctAccumulator::new()),
             DataType::Null => {
                 Box::new(NoopAccumulator::new(ScalarValue::UInt64(Some(0))))
             }
