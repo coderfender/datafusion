@@ -23,13 +23,10 @@ mod native;
 pub use bytes::BytesDistinctCountAccumulator;
 pub use bytes::BytesViewDistinctCountAccumulator;
 pub use dict::DictionaryCountAccumulator;
-<<<<<<< HEAD
+pub use groups::PrimitiveDistinctCountGroupsAccumulator;
 pub use native::Bitmap65536DistinctCountAccumulator;
 pub use native::Bitmap65536DistinctCountAccumulatorI16;
 pub use native::BoolArray256DistinctCountAccumulator;
 pub use native::BoolArray256DistinctCountAccumulatorI8;
-=======
-pub use groups::PrimitiveDistinctCountGroupsAccumulator;
->>>>>>> f982d8de2 (add count distinct group benchmarks)
 pub use native::FloatDistinctCountAccumulator;
 pub use native::PrimitiveDistinctCountAccumulator;
