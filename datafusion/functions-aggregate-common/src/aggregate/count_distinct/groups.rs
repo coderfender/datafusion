@@ -18,7 +18,7 @@
 use arrow::array::{
     ArrayRef, AsArray, BooleanArray, Int64Array, ListArray, PrimitiveArray,
 };
-use arrow::buffer::OffsetBuffer;
+use arrow::buffer::{OffsetBuffer, ScalarBuffer};
 use arrow::datatypes::{ArrowPrimitiveType, Field};
 use datafusion_common::HashSet;
 use datafusion_common::hash_utils::RandomState;
@@ -142,7 +142,10 @@ where
             let _ = emit_to.take_needed(&mut self.counts);
         }
 
-        let values_array = Arc::new(PrimitiveArray::<T>::from_iter_values(all_values));
+        let values_array = Arc::new(PrimitiveArray::<T>::new(
+            ScalarBuffer::from(all_values),
+            None,
+        ));
         let list_array = ListArray::new(
             Arc::new(Field::new_list_field(T::DATA_TYPE, true)),
             OffsetBuffer::new(offsets.into()),
