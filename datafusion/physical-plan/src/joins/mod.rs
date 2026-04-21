@@ -25,6 +25,7 @@ pub use hash_join::{
 };
 pub use nested_loop_join::{NestedLoopJoinExec, NestedLoopJoinExecBuilder};
 use parking_lot::Mutex;
+use roaring::RoaringBitmap;
 // Note: SortMergeJoin is not used in plans yet
 pub use piecewise_merge_join::PiecewiseMergeJoinExec;
 pub use sort_merge_join::SortMergeJoinExec;
@@ -53,6 +54,8 @@ use utils::JoinHashMapType;
 pub enum Map {
     HashMap(Box<dyn JoinHashMapType>),
     ArrayMap(ArrayMap),
+    // optimized path for single int join keys
+    RoaringMap(RoaringBitmap),
 }
 
 impl Map {
@@ -61,6 +64,7 @@ impl Map {
         match self {
             Map::HashMap(map) => map.len(),
             Map::ArrayMap(array_map) => array_map.num_of_distinct_key(),
+            Map::RoaringMap(bitmap) => bitmap.len() as usize,
         }
     }
 

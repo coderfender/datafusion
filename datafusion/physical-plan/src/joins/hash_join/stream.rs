@@ -46,9 +46,10 @@ use crate::{
     },
 };
 
-use arrow::array::{Array, ArrayRef, UInt32Array, UInt64Array};
+use arrow::array::{Array, ArrayRef, Int32Array, UInt32Array, UInt64Array};
 use arrow::datatypes::{Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
+use arrow_schema::DataType;
 use datafusion_common::{
     JoinSide, JoinType, NullEquality, Result, internal_datafusion_err, internal_err,
 };
@@ -710,6 +711,50 @@ impl HashJoinStream {
                     UInt32Array::from(self.probe_indices_buffer.clone()),
                     next_offset,
                 )
+            }
+            Map::RoaringMap(bitmap) => {
+                let key_col = &state.values[0];
+                let is_semi = matches!(self.join_type, JoinType::RightSemi);
+                let right_indices = match key_col.data_type() {
+                    DataType::Int32 => {
+                        let arr = key_col.as_any().downcast_ref::<Int32Array>().unwrap();
+                        arr.values()
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(i, v)| {
+                                let contains = bitmap.contains(*v as u32);
+                                let emit = if is_semi { contains } else { !contains };
+                                emit.then_some(i as u32)
+                            })
+                            .collect::<Vec<u32>>()
+                    }
+                    DataType::UInt32 => {
+                        let arr = key_col.as_any().downcast_ref::<UInt32Array>().unwrap();
+                        arr.values()
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(i, v)| {
+                                let contains = bitmap.contains(*v);
+                                let emit = if is_semi { contains } else { !contains };
+                                emit.then_some(i as u32)
+                            })
+                            .collect::<Vec<u32>>()
+                    }
+                    _ => {
+                        return internal_err!("unsupported data type for roaring bitmap");
+                    }
+                };
+                let indices = UInt32Array::from(right_indices);
+                let columns: Vec<ArrayRef> = state.batch
+                    .columns()
+                    .iter()
+                    .map(|col| arrow::compute::take(col, &indices, None))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                let batch = RecordBatch::try_new(self.schema.clone(), columns)?;
+                self.output_buffer.push_batch(batch)?;
+                self.state = HashJoinStreamState::FetchProbeBatch;
+                return Ok(StatefulStreamResult::Continue);
             }
         };
 

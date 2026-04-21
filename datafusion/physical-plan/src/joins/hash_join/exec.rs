@@ -65,7 +65,7 @@ use crate::{
     metrics::{ExecutionPlanMetricsSet, MetricsSet},
 };
 
-use arrow::array::{ArrayRef, BooleanBufferBuilder};
+use arrow::array::{Array, ArrayRef, BooleanBufferBuilder, Int16Array, Int32Array, UInt32Array};
 use arrow::compute::concat_batches;
 use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
@@ -89,19 +89,19 @@ use datafusion_physical_expr::expressions::{Column, DynamicFilterPhysicalExpr, l
 use datafusion_physical_expr::projection::{ProjectionRef, combine_projections};
 use datafusion_physical_expr::{PhysicalExpr, PhysicalExprRef};
 
+use super::partitioned_hash_eval::SeededRandomState;
 use datafusion_common::hash_utils::RandomState;
 use datafusion_physical_expr_common::physical_expr::fmt_sql;
 use datafusion_physical_expr_common::utils::evaluate_expressions_to_arrays;
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 
-use super::partitioned_hash_eval::SeededRandomState;
-
 /// Hard-coded seed to ensure hash values from the hash join differ from `RepartitionExec`, avoiding collisions.
 pub(crate) const HASH_JOIN_SEED: SeededRandomState =
     SeededRandomState::with_seed(12210250226015887276);
 
 const ARRAY_MAP_CREATED_COUNT_METRIC_NAME: &str = "array_map_created_count";
+const ROARING_MAP_CREATED_COUNT_METRIC_NAME: &str = "roaring_map_created_count";
 
 #[expect(clippy::too_many_arguments)]
 fn try_create_array_map(
@@ -1316,6 +1316,10 @@ impl ExecutionPlan for HashJoinExec {
             .with_category(MetricCategory::Rows)
             .counter(ARRAY_MAP_CREATED_COUNT_METRIC_NAME, partition);
 
+        let roaring_map_created_count = MetricBuilder::new(&self.metrics)
+            .with_category(MetricCategory::Rows)
+            .counter(ROARING_MAP_CREATED_COUNT_METRIC_NAME, partition);
+
         let left_fut = match self.mode {
             PartitionMode::CollectLeft => self.left_fut.try_once(|| {
                 let left_stream = self.left.execute(0, Arc::clone(&context))?;
@@ -1335,6 +1339,9 @@ impl ExecutionPlan for HashJoinExec {
                     Arc::clone(context.session_config().options()),
                     self.null_equality,
                     array_map_created_count,
+                    roaring_map_created_count,
+                    self.join_type,
+                    self.filter.is_some(),
                 ))
             })?,
             PartitionMode::Partitioned => {
@@ -1356,6 +1363,9 @@ impl ExecutionPlan for HashJoinExec {
                     Arc::clone(context.session_config().options()),
                     self.null_equality,
                     array_map_created_count,
+                    roaring_map_created_count,
+                    self.join_type,
+                    self.filter.is_some(),
                 ))
             }
             PartitionMode::Auto => {
@@ -1855,6 +1865,31 @@ fn should_collect_min_max_for_perfect_hash(
     Ok(ArrayMap::is_supported_type(&data_type))
 }
 
+fn should_use_roaring_bitmap(
+    join_type: &JoinType,
+    on_left: &[PhysicalExprRef],
+    schema: &Schema,
+    has_filter: bool,
+) -> bool {
+    if has_filter {
+        return false;
+    }
+    if !matches!(join_type, JoinType::RightSemi | JoinType::RightAnti) {
+        return false;
+    }
+    if on_left.len() != 1 {
+        return false;
+    }
+    let left_key = &on_left[0];
+    if !matches!(
+        left_key.data_type(schema),
+        Ok(DataType::Int32) | Ok(DataType::UInt32)
+    ) {
+        return false;
+    }
+    true
+}
+
 /// Collects all batches from the left (build) side stream and creates a hash map for joining.
 ///
 /// This function is responsible for:
@@ -1896,6 +1931,9 @@ async fn collect_left_input(
     config: Arc<ConfigOptions>,
     null_equality: NullEquality,
     array_map_created_count: Count,
+    roaring_map_created_count: Count,
+    join_type: JoinType,
+    has_filter: bool,
 ) -> Result<JoinLeftData> {
     let schema = left_stream.schema();
 
@@ -1957,7 +1995,34 @@ async fn collect_left_input(
     };
 
     let (join_hash_map, batch, left_values) =
-        if let Some((array_map, batch, left_value)) = try_create_array_map(
+        if config.execution.perfect_hash_join_small_build_threshold > 0
+            && should_use_roaring_bitmap(&join_type, &on_left, &schema, has_filter)
+        {
+            let batch = concat_batches(&schema, &batches)?;
+            let left_values = evaluate_expressions_to_arrays(&on_left, &batch)?;
+            let key_col = &left_values[0];
+            let bitmap = match key_col.data_type() {
+                DataType::UInt32 => key_col
+                    .as_any()
+                    .downcast_ref::<UInt32Array>()
+                    .unwrap()
+                    .values()
+                    .iter()
+                    .map(|&v| v as u32)
+                    .collect(),
+                DataType::Int32 => key_col
+                    .as_any()
+                    .downcast_ref::<Int32Array>()
+                    .unwrap()
+                    .values()
+                    .iter()
+                    .map(|&v| v as u32)
+                    .collect(),
+                _ => return internal_err!("unsupported data type to build bitmap"),
+            };
+            roaring_map_created_count.add(1);
+            (Map::RoaringMap(bitmap), batch, left_values)
+        } else if let Some((array_map, batch, left_value)) = try_create_array_map(
             &bounds,
             &schema,
             &batches,
@@ -2090,21 +2155,25 @@ mod tests {
     use super::*;
 
     fn assert_phj_used(metrics: &MetricsSet, use_phj: bool) {
+        let array_map_count = metrics
+            .sum_by_name(ARRAY_MAP_CREATED_COUNT_METRIC_NAME)
+            .map(|v| v.as_usize())
+            .unwrap_or(0);
+        let roaring_map_count = metrics
+            .sum_by_name(ROARING_MAP_CREATED_COUNT_METRIC_NAME)
+            .map(|v| v.as_usize())
+            .unwrap_or(0);
+
         if use_phj {
             assert!(
-                metrics
-                    .sum_by_name(ARRAY_MAP_CREATED_COUNT_METRIC_NAME)
-                    .expect("should have array_map_created_count metrics")
-                    .as_usize()
-                    >= 1
+                array_map_count >= 1 || roaring_map_count >= 1,
+                "Expected either array_map or roaring_map to be created"
             );
         } else {
             assert_eq!(
-                metrics
-                    .sum_by_name(ARRAY_MAP_CREATED_COUNT_METRIC_NAME)
-                    .map(|v| v.as_usize())
-                    .unwrap_or(0),
-                0
+                array_map_count + roaring_map_count,
+                0,
+                "Expected no array_map or roaring_map to be created"
             )
         }
     }

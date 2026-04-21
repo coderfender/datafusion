@@ -24,9 +24,9 @@ use arrow::{
     datatypes::{DataType, Schema},
     record_batch::RecordBatch,
 };
-use datafusion_common::Result;
 use datafusion_common::hash_utils::RandomState;
 use datafusion_common::hash_utils::{create_hashes, with_hashes};
+use datafusion_common::{Result, internal_err};
 use datafusion_expr::ColumnarValue;
 use datafusion_physical_expr_common::physical_expr::{
     DynHash, PhysicalExpr, PhysicalExprRef,
@@ -334,6 +334,11 @@ impl PhysicalExpr for HashTableLookupExpr {
             Map::ArrayMap(map) => {
                 let array = map.contain_keys(&join_keys)?;
                 Ok(ColumnarValue::Array(Arc::new(array)))
+            }
+            Map::RoaringMap(_bimap) => {
+                internal_err!(
+                    "Roaringbitmap is not support for partitioned hash evaluation"
+                )
             }
         }
     }
