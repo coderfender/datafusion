@@ -46,7 +46,7 @@ use crate::expr::interval::FFI_Interval;
 use crate::record_batch_stream::{
     record_batch_to_wrapped_array, wrapped_array_to_record_batch,
 };
-use crate::util::{FFI_Option, FFI_Result, FFIResult};
+use crate::util::{FFI_Option, FFIResult};
 use crate::{df_result, sresult, sresult_return};
 
 #[repr(C)]
@@ -290,7 +290,7 @@ unsafe extern "C" fn propagate_constraints_fn_wrapper(
             .transpose()
     );
 
-    FFI_Result::Ok(result.into())
+    FFIResult::Ok(result.into())
 }
 
 unsafe extern "C" fn evaluate_statistics_fn_wrapper(
@@ -336,7 +336,7 @@ unsafe extern "C" fn propagate_statistics_fn_wrapper(
             .transpose()
     );
 
-    FFI_Result::Ok(result.into())
+    FFIResult::Ok(result.into())
 }
 
 unsafe extern "C" fn get_properties_fn_wrapper(
@@ -359,7 +359,7 @@ unsafe extern "C" fn get_properties_fn_wrapper(
 unsafe extern "C" fn fmt_sql_fn_wrapper(expr: &FFI_PhysicalExpr) -> FFIResult<SString> {
     let expr = expr.inner();
     let result = fmt_sql(expr.as_ref()).to_string();
-    FFI_Result::Ok(result.into())
+    FFIResult::Ok(result.into())
 }
 
 unsafe extern "C" fn snapshot_fn_wrapper(
@@ -683,8 +683,8 @@ impl PhysicalExpr for ForeignPhysicalExpr {
     fn fmt_sql(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         unsafe {
             match (self.expr.fmt_sql)(&self.expr) {
-                FFI_Result::Ok(sql) => write!(f, "{sql}"),
-                FFI_Result::Err(_) => Err(std::fmt::Error),
+                FFIResult::Ok(sql) => write!(f, "{sql}"),
+                FFIResult::Err(_) => Err(std::fmt::Error),
             }
         }
     }

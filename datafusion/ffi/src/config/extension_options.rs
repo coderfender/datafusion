@@ -27,7 +27,7 @@ use stabby::string::String as SString;
 use stabby::vec::Vec as SVec;
 
 use crate::df_result;
-use crate::util::{FFI_Result, FFIResult};
+use crate::util::{FFIResult};
 
 /// A stable struct for sharing [`ExtensionOptions`] across FFI boundaries.
 ///
@@ -99,7 +99,7 @@ unsafe extern "C" fn set_fn_wrapper(
     let _ = options
         .inner_mut()
         .insert(key.as_str().into(), value.as_str().into());
-    FFI_Result::Ok(())
+    FFIResult::Ok(())
 }
 
 unsafe extern "C" fn entries_fn_wrapper(

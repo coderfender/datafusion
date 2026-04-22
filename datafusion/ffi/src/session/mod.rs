@@ -59,7 +59,7 @@ use crate::session::config::FFI_SessionConfig;
 use crate::udaf::FFI_AggregateUDF;
 use crate::udf::FFI_ScalarUDF;
 use crate::udwf::FFI_WindowUDF;
-use crate::util::{FFI_Result, FFIResult};
+use crate::util::{FFIResult};
 use crate::{df_result, sresult, sresult_return};
 
 pub mod config;
@@ -201,7 +201,7 @@ unsafe extern "C" fn create_physical_expr_fn_wrapper(
     let physical_expr =
         sresult_return!(session.create_physical_expr(logical_expr, &schema));
 
-    FFI_Result::Ok(physical_expr.into())
+    FFIResult::Ok(physical_expr.into())
 }
 
 unsafe extern "C" fn scalar_functions_fn_wrapper(

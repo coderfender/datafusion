@@ -29,7 +29,7 @@ use tokio::runtime::Handle;
 
 use crate::arrow_wrappers::{WrappedArray, WrappedSchema};
 use crate::sresult;
-use crate::util::{FFI_Option, FFI_Result, FFIResult};
+use crate::util::{FFI_Option, FFIResult};
 
 /// A stable struct for sharing [`RecordBatchStream`] across FFI boundaries.
 /// We use the async-ffi crate for handling async calls across libraries.
@@ -121,7 +121,7 @@ fn maybe_record_batch_to_wrapped_stream(
         Some(Ok(record_batch)) => {
             FFI_Option::Some(record_batch_to_wrapped_array(record_batch))
         }
-        Some(Err(e)) => FFI_Option::Some(FFI_Result::Err(e.to_string().into())),
+        Some(Err(e)) => FFI_Option::Some(FFIResult::Err(e.to_string().into())),
         None => FFI_Option::None,
     }
 }

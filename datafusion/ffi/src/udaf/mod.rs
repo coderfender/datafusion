@@ -43,7 +43,7 @@ use std::sync::Arc;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
-    FFI_Option, FFI_Result, FFIResult, rvec_wrapped_to_vec_datatype,
+    FFI_Option, FFIResult, rvec_wrapped_to_vec_datatype,
     rvec_wrapped_to_vec_fieldref, vec_datatype_to_rvec_wrapped,
     vec_fieldref_to_rvec_wrapped,
 };
@@ -264,7 +264,7 @@ unsafe extern "C" fn with_beneficial_ordering_fn_wrapper(
         .flatten()
         .map(|func| FFI_AggregateUDF::from(Arc::new(func)));
 
-        FFI_Result::Ok(result.into())
+        FFIResult::Ok(result.into())
     }
 }
 
@@ -318,7 +318,7 @@ unsafe extern "C" fn state_fields_fn_wrapper(
         .map(|field| field.encode_to_vec().into_iter().collect())
         .collect();
 
-        FFI_Result::Ok(state_fields)
+        FFIResult::Ok(state_fields)
     }
 }
 

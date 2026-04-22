@@ -37,7 +37,7 @@ use tokio::runtime::Handle;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::table_provider::FFI_TableProvider;
-use crate::util::{FFI_Result, FFIResult};
+use crate::util::{FFIResult};
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing a [`TableFunctionImpl`] across FFI boundaries.
@@ -108,7 +108,7 @@ unsafe extern "C" fn call_fn_wrapper(
     ));
 
     let table_provider = sresult_return!(udtf_inner.call(&args));
-    FFI_Result::Ok(FFI_TableProvider::new_with_ffi_codec(
+    FFIResult::Ok(FFI_TableProvider::new_with_ffi_codec(
         table_provider,
         false,
         runtime,

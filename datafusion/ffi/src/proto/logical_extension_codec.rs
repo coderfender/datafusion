@@ -44,7 +44,7 @@ use crate::table_provider::FFI_TableProvider;
 use crate::udaf::FFI_AggregateUDF;
 use crate::udf::FFI_ScalarUDF;
 use crate::udwf::FFI_WindowUDF;
-use crate::util::{FFI_Result, FFIResult};
+use crate::util::{FFIResult};
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`LogicalExtensionCodec`] across FFI boundaries.
@@ -163,7 +163,7 @@ unsafe extern "C" fn try_decode_table_provider_fn_wrapper(
         ctx.as_ref()
     ));
 
-    FFI_Result::Ok(FFI_TableProvider::new_with_ffi_codec(
+    FFIResult::Ok(FFI_TableProvider::new_with_ffi_codec(
         table_provider,
         true,
         runtime,
@@ -187,7 +187,7 @@ unsafe extern "C" fn try_encode_table_provider_fn_wrapper(
         &mut bytes
     ));
 
-    FFI_Result::Ok(bytes.into_iter().collect())
+    FFIResult::Ok(bytes.into_iter().collect())
 }
 
 unsafe extern "C" fn try_decode_udf_fn_wrapper(
@@ -200,7 +200,7 @@ unsafe extern "C" fn try_decode_udf_fn_wrapper(
     let udf = sresult_return!(codec.try_decode_udf(name.as_str(), buf.as_ref()));
     let udf = FFI_ScalarUDF::from(udf);
 
-    FFI_Result::Ok(udf)
+    FFIResult::Ok(udf)
 }
 
 unsafe extern "C" fn try_encode_udf_fn_wrapper(
@@ -214,7 +214,7 @@ unsafe extern "C" fn try_encode_udf_fn_wrapper(
     let mut bytes = Vec::new();
     sresult_return!(codec.try_encode_udf(&node, &mut bytes));
 
-    FFI_Result::Ok(bytes.into_iter().collect())
+    FFIResult::Ok(bytes.into_iter().collect())
 }
 
 unsafe extern "C" fn try_decode_udaf_fn_wrapper(
@@ -226,7 +226,7 @@ unsafe extern "C" fn try_decode_udaf_fn_wrapper(
     let udaf = sresult_return!(codec_inner.try_decode_udaf(name.into(), buf.as_ref()));
     let udaf = FFI_AggregateUDF::from(udaf);
 
-    FFI_Result::Ok(udaf)
+    FFIResult::Ok(udaf)
 }
 
 unsafe extern "C" fn try_encode_udaf_fn_wrapper(
@@ -240,7 +240,7 @@ unsafe extern "C" fn try_encode_udaf_fn_wrapper(
     let mut bytes = Vec::new();
     sresult_return!(codec.try_encode_udaf(&udaf, &mut bytes));
 
-    FFI_Result::Ok(bytes.into_iter().collect())
+    FFIResult::Ok(bytes.into_iter().collect())
 }
 
 unsafe extern "C" fn try_decode_udwf_fn_wrapper(
@@ -252,7 +252,7 @@ unsafe extern "C" fn try_decode_udwf_fn_wrapper(
     let udwf = sresult_return!(codec.try_decode_udwf(name.into(), buf.as_ref()));
     let udwf = FFI_WindowUDF::from(udwf);
 
-    FFI_Result::Ok(udwf)
+    FFIResult::Ok(udwf)
 }
 
 unsafe extern "C" fn try_encode_udwf_fn_wrapper(
@@ -266,7 +266,7 @@ unsafe extern "C" fn try_encode_udwf_fn_wrapper(
     let mut bytes = Vec::new();
     sresult_return!(codec.try_encode_udwf(&udwf, &mut bytes));
 
-    FFI_Result::Ok(bytes.into_iter().collect())
+    FFIResult::Ok(bytes.into_iter().collect())
 }
 
 unsafe extern "C" fn release_fn_wrapper(provider: &mut FFI_LogicalExtensionCodec) {

@@ -45,7 +45,7 @@ use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::session::{FFI_SessionRef, ForeignSession};
 use crate::table_source::{FFI_TableProviderFilterPushDown, FFI_TableType};
-use crate::util::{FFI_Option, FFI_Result, FFIResult};
+use crate::util::{FFI_Option, FFIResult};
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`TableProvider`] across FFI boundaries.
@@ -224,7 +224,6 @@ unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
         &task_ctx,
         logical_codec.as_ref(),
     )
-    .map_err(|e| e.to_string().into())
     .into()
 }
 
@@ -277,7 +276,7 @@ unsafe extern "C" fn scan_fn_wrapper(
                 .await
         );
 
-        FFI_Result::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
+        FFIResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
     }
     .into_ffi()
 }
@@ -314,7 +313,7 @@ unsafe extern "C" fn insert_into_fn_wrapper(
                 .await
         );
 
-        FFI_Result::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
+        FFIResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
     }
     .into_ffi()
 }

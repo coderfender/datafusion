@@ -32,7 +32,7 @@ use tokio::runtime::Handle;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::table_provider::{FFI_TableProvider, ForeignTableProvider};
-use crate::util::{FFI_Option, FFI_Result, FFIResult};
+use crate::util::{FFI_Option, FFIResult};
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`SchemaProvider`] across FFI boundaries.
@@ -138,7 +138,7 @@ unsafe extern "C" fn table_fn_wrapper(
                 })
                 .into();
 
-            FFI_Result::Ok(table)
+            FFIResult::Ok(table)
         }
         .into_ffi()
     }
@@ -161,7 +161,7 @@ unsafe extern "C" fn register_table_fn_wrapper(
                 FFI_TableProvider::new_with_ffi_codec(t, true, runtime, logical_codec)
             });
 
-        FFI_Result::Ok(returned_table.into())
+        FFIResult::Ok(returned_table.into())
     }
 }
 
@@ -179,7 +179,7 @@ unsafe extern "C" fn deregister_table_fn_wrapper(
                 FFI_TableProvider::new_with_ffi_codec(t, true, runtime, logical_codec)
             });
 
-        FFI_Result::Ok(returned_table.into())
+        FFIResult::Ok(returned_table.into())
     }
 }
 

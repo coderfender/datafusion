@@ -43,7 +43,7 @@ mod range;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
-    FFI_Option, FFI_Result, FFIResult, rvec_wrapped_to_vec_datatype,
+    FFI_Option, FFIResult, rvec_wrapped_to_vec_datatype,
     rvec_wrapped_to_vec_fieldref, vec_datatype_to_rvec_wrapped,
     vec_fieldref_to_rvec_wrapped,
 };
@@ -131,7 +131,7 @@ unsafe extern "C" fn partition_evaluator_fn_wrapper(
         let evaluator =
             sresult_return!(inner.partition_evaluator_factory((&args).into()));
 
-        FFI_Result::Ok(evaluator.into())
+        FFIResult::Ok(evaluator.into())
     }
 }
 
@@ -152,7 +152,7 @@ unsafe extern "C" fn field_fn_wrapper(
 
         let schema = Arc::new(Schema::new(vec![field]));
 
-        FFI_Result::Ok(WrappedSchema::from(schema))
+        FFIResult::Ok(WrappedSchema::from(schema))
     }
 }
 

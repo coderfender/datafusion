@@ -137,7 +137,7 @@ unsafe extern "C" fn with_new_children_fn_wrapper(
     let children = sresult_return!(children);
     let new_plan = sresult_return!(inner_plan.with_new_children(children));
 
-    crate::ffi_option::FFI_Result::Ok(FFI_ExecutionPlan::new(new_plan, runtime))
+    FFIResult::Ok(FFI_ExecutionPlan::new(new_plan, runtime))
 }
 
 unsafe extern "C" fn execute_fn_wrapper(

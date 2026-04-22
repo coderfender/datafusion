@@ -31,7 +31,7 @@ use stabby::vec::Vec as SVec;
 
 use super::range::FFI_Range;
 use crate::arrow_wrappers::WrappedArray;
-use crate::util::{FFI_Result, FFIResult};
+use crate::util::{FFIResult};
 use crate::{df_result, sresult, sresult_return};
 
 /// A stable struct for sharing [`PartitionEvaluator`] across FFI boundaries.
@@ -152,7 +152,7 @@ unsafe extern "C" fn evaluate_fn_wrapper(
         let proto_result: datafusion_proto::protobuf::ScalarValue =
             sresult_return!((&scalar_result).try_into());
 
-        FFI_Result::Ok(proto_result.encode_to_vec().into_iter().collect())
+        FFIResult::Ok(proto_result.encode_to_vec().into_iter().collect())
     }
 }
 

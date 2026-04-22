@@ -22,6 +22,8 @@
 //! pointers and cannot implement `IStable`. These simple `#[repr(C)]` types
 //! provide the same FFI-safe semantics without that constraint.
 
+use stabby::string::String as SString;
+
 /// An FFI-safe option type.
 #[repr(C, u8)]
 #[derive(Debug, Clone)]
@@ -68,65 +70,65 @@ impl<T> FFI_Option<T> {
     }
 }
 
-/// An FFI-safe result type.
+/// An FFI-safe result type with SString as the error type.
 #[repr(C, u8)]
 #[derive(Debug, Clone)]
-pub enum FFI_Result<T, E> {
+pub enum FFIResult<T> {
     Ok(T),
-    Err(E),
+    Err(SString),
 }
 
-impl<T, E> From<Result<T, E>> for FFI_Result<T, E> {
-    fn from(res: Result<T, E>) -> Self {
-        match res {
-            Ok(v) => FFI_Result::Ok(v),
-            Err(e) => FFI_Result::Err(e),
-        }
-    }
-}
-
-impl<T, E> From<FFI_Result<T, E>> for Result<T, E> {
-    fn from(res: FFI_Result<T, E>) -> Self {
-        match res {
-            FFI_Result::Ok(v) => Ok(v),
-            FFI_Result::Err(e) => Err(e),
-        }
-    }
-}
-
-impl<T, E> FFI_Result<T, E> {
+impl<T> FFIResult<T> {
     pub fn is_ok(&self) -> bool {
-        matches!(self, FFI_Result::Ok(_))
+        matches!(self, FFIResult::Ok(_))
     }
 
     pub fn is_err(&self) -> bool {
-        matches!(self, FFI_Result::Err(_))
+        matches!(self, FFIResult::Err(_))
     }
 
-    pub fn unwrap_err(self) -> E {
+    pub fn unwrap_err(self) -> SString {
         match self {
-            FFI_Result::Err(e) => e,
-            FFI_Result::Ok(_) => panic!("called unwrap_err on Ok"),
+            FFIResult::Err(e) => e,
+            FFIResult::Ok(_) => panic!("called unwrap_err on Ok"),
         }
     }
 
-    pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> FFI_Result<U, E> {
+    pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> FFIResult<U> {
         match self {
-            FFI_Result::Ok(v) => FFI_Result::Ok(f(v)),
-            FFI_Result::Err(e) => FFI_Result::Err(e),
+            FFIResult::Ok(v) => FFIResult::Ok(f(v)),
+            FFIResult::Err(e) => FFIResult::Err(e),
         }
     }
 
-    pub fn into_result(self) -> Result<T, E> {
+    pub fn into_result(self) -> Result<T, SString> {
         self.into()
     }
 }
 
-impl<T: PartialEq, E: PartialEq> PartialEq for FFI_Result<T, E> {
+impl<T> From<FFIResult<T>> for Result<T, SString> {
+    fn from(res: FFIResult<T>) -> Self {
+        match res {
+            FFIResult::Ok(v) => Ok(v),
+            FFIResult::Err(e) => Err(e),
+        }
+    }
+}
+
+impl<T, E: ToString> From<Result<T, E>> for FFIResult<T> {
+    fn from(res: Result<T, E>) -> Self {
+        match res {
+            Ok(v) => FFIResult::Ok(v),
+            Err(e) => FFIResult::Err(SString::from(e.to_string().as_str())),
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for FFIResult<T> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (FFI_Result::Ok(a), FFI_Result::Ok(b)) => a == b,
-            (FFI_Result::Err(a), FFI_Result::Err(b)) => a == b,
+            (FFIResult::Ok(a), FFIResult::Ok(b)) => a == b,
+            (FFIResult::Err(a), FFIResult::Err(b)) => a == b,
             _ => false,
         }
     }

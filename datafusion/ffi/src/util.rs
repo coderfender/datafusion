@@ -20,20 +20,12 @@ use std::sync::Arc;
 use arrow::datatypes::{DataType, Field};
 use arrow::ffi::FFI_ArrowSchema;
 use arrow_schema::FieldRef;
-use stabby::string::String as SString;
 use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::WrappedSchema;
 
 // Re-export for convenience
-pub use crate::ffi_option::{FFI_Option, FFI_Result};
-
-/// Convenience type for results passed through the FFI boundary. Since the
-/// `DataFusionError` enum is complex and little value is gained from creating
-/// a FFI safe variant of it, we convert errors to strings when passing results
-/// back. These are converted back and forth using the `df_result`, `sresult`,
-/// and `sresult_return` macros.
-pub type FFIResult<T> = FFI_Result<T, SString>;
+pub use crate::ffi_option::{FFI_Option, FFIResult};
 
 /// This macro is a helpful conversion utility to convert from an FFIResult to a
 /// DataFusion result.
@@ -54,8 +46,8 @@ macro_rules! df_result {
 macro_rules! sresult {
     ( $x:expr ) => {
         match $x {
-            Ok(v) => $crate::ffi_option::FFI_Result::Ok(v),
-            Err(e) => $crate::ffi_option::FFI_Result::Err(stabby::string::String::from(
+            Ok(v) => $crate::ffi_option::FFIResult::Ok(v),
+            Err(e) => $crate::ffi_option::FFIResult::Err(stabby::string::String::from(
                 e.to_string().as_str(),
             )),
         }
@@ -71,7 +63,7 @@ macro_rules! sresult_return {
         match $x {
             Ok(v) => v,
             Err(e) => {
-                return $crate::ffi_option::FFI_Result::Err(stabby::string::String::from(
+                return $crate::ffi_option::FFIResult::Err(stabby::string::String::from(
                     e.to_string().as_str(),
                 ))
             }
@@ -139,8 +131,7 @@ pub(crate) mod tests {
     use stabby::string::String as SString;
 
     use crate::execution::FFI_TaskContextProvider;
-    use crate::ffi_option::FFI_Result;
-    use crate::util::FFIResult;
+    use crate::ffi_option::FFIResult;
 
     pub(crate) fn test_session_and_ctx() -> (Arc<SessionContext>, FFI_TaskContextProvider)
     {
@@ -152,7 +143,7 @@ pub(crate) mod tests {
     }
 
     fn wrap_result(result: Result<String, DataFusionError>) -> FFIResult<String> {
-        FFI_Result::Ok(sresult_return!(result))
+        FFIResult::Ok(sresult_return!(result))
     }
 
     #[test]
@@ -160,9 +151,9 @@ pub(crate) mod tests {
         const VALID_VALUE: &str = "valid_value";
         const ERROR_VALUE: &str = "error_value";
 
-        let ok_r_result: FFIResult<SString> = FFI_Result::Ok(SString::from(VALID_VALUE));
+        let ok_r_result: FFIResult<SString> = FFIResult::Ok(SString::from(VALID_VALUE));
         let err_r_result: FFIResult<SString> =
-            FFI_Result::Err(SString::from(ERROR_VALUE));
+            FFIResult::Err(SString::from(ERROR_VALUE));
 
         let returned_ok_result = df_result!(ok_r_result);
         assert!(returned_ok_result.is_ok());

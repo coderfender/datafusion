@@ -91,8 +91,8 @@ challenges for our use case:
    function pointers that reference `&Self`, which complicates `IStable`
    implementations.
 
-3. **FFI_Option and FFI_Result**: For similar reasons, we provide our own
-   `FFI_Option<T>` and `FFI_Result<T, E>` types using `#[repr(C, u8)]` instead
+3. **FFI_Option and FFIResult**: For similar reasons, we provide our own
+   `FFI_Option<T>` and `FFIResult<T>` types using `#[repr(C, u8)]` instead
    of stabby's `Option` and `Result`, which require inner types to be `IStable`.
 
 This hybrid approach gives us stabby's maintained, ABI-stable collection types
