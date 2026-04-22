@@ -36,7 +36,7 @@ use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::session::{FFI_SessionRef, ForeignSession};
 use crate::table_provider::{FFI_TableProvider, ForeignTableProvider};
-use crate::util::{FFIResult};
+use crate::util::FFIResult;
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`TableProviderFactory`] across FFI boundaries.

@@ -37,7 +37,7 @@ use crate::execution_plan::FFI_ExecutionPlan;
 use crate::udaf::FFI_AggregateUDF;
 use crate::udf::FFI_ScalarUDF;
 use crate::udwf::FFI_WindowUDF;
-use crate::util::{FFIResult};
+use crate::util::FFIResult;
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`PhysicalExtensionCodec`] across FFI boundaries.

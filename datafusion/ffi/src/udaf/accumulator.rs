@@ -30,7 +30,7 @@ use prost::Message;
 use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::WrappedArray;
-use crate::util::{FFIResult};
+use crate::util::FFIResult;
 use crate::{df_result, sresult, sresult_return};
 
 /// A stable struct for sharing [`Accumulator`] across FFI boundaries.

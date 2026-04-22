@@ -43,9 +43,8 @@ use std::sync::Arc;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
-    FFI_Option, FFIResult, rvec_wrapped_to_vec_datatype,
-    rvec_wrapped_to_vec_fieldref, vec_datatype_to_rvec_wrapped,
-    vec_fieldref_to_rvec_wrapped,
+    FFI_Option, FFIResult, rvec_wrapped_to_vec_datatype, rvec_wrapped_to_vec_fieldref,
+    vec_datatype_to_rvec_wrapped, vec_fieldref_to_rvec_wrapped,
 };
 use crate::volatility::FFI_Volatility;
 use crate::{df_result, sresult, sresult_return};

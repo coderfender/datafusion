@@ -28,7 +28,7 @@ use tokio::runtime::Handle;
 
 use crate::config::FFI_ConfigOptions;
 use crate::execution_plan::FFI_ExecutionPlan;
-use crate::util::{FFIResult};
+use crate::util::FFIResult;
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`PhysicalOptimizerRule`] across FFI boundaries.

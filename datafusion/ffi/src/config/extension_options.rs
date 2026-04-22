@@ -27,7 +27,7 @@ use stabby::string::String as SString;
 use stabby::vec::Vec as SVec;
 
 use crate::df_result;
-use crate::util::{FFIResult};
+use crate::util::FFIResult;
 
 /// A stable struct for sharing [`ExtensionOptions`] across FFI boundaries.
 ///

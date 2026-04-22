@@ -59,7 +59,7 @@ use crate::session::config::FFI_SessionConfig;
 use crate::udaf::FFI_AggregateUDF;
 use crate::udf::FFI_ScalarUDF;
 use crate::udwf::FFI_WindowUDF;
-use crate::util::{FFIResult};
+use crate::util::FFIResult;
 use crate::{df_result, sresult, sresult_return};
 
 pub mod config;

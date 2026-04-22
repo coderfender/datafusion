@@ -37,7 +37,7 @@ use tokio::runtime::Handle;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::table_provider::FFI_TableProvider;
-use crate::util::{FFIResult};
+use crate::util::FFIResult;
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing a [`TableFunctionImpl`] across FFI boundaries.

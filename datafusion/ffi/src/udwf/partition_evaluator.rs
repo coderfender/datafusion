@@ -31,7 +31,7 @@ use stabby::vec::Vec as SVec;
 
 use super::range::FFI_Range;
 use crate::arrow_wrappers::WrappedArray;
-use crate::util::{FFIResult};
+use crate::util::FFIResult;
 use crate::{df_result, sresult, sresult_return};
 
 /// A stable struct for sharing [`PartitionEvaluator`] across FFI boundaries.
