@@ -31,8 +31,14 @@ mod tests {
         let module = get_module()?;
         let (ctx, codec) = super::utils::ctx_and_codec();
 
-        let ffi_catalog = (module.create_catalog)(codec);
-        let foreign_catalog: Arc<dyn CatalogProvider + Send> = (&ffi_catalog).into();
+        let ffi_catalog =
+            module
+                .create_catalog()
+                .ok_or(DataFusionError::NotImplemented(
+                    "External catalog provider failed to implement create_catalog"
+                        .to_string(),
+                ))?(codec);
+        let foreign_catalog: Arc<dyn CatalogProvider> = (&ffi_catalog).into();
 
         let _ = ctx.register_catalog("fruit", foreign_catalog);
 
@@ -52,8 +58,14 @@ mod tests {
         let module = get_module()?;
         let (ctx, codec) = super::utils::ctx_and_codec();
 
-        let ffi_catalog_list = (module.create_catalog_list)(codec);
-        let foreign_catalog_list: Arc<dyn CatalogProviderList + Send> =
+        let ffi_catalog_list =
+            module
+                .create_catalog_list()
+                .ok_or(DataFusionError::NotImplemented(
+                    "External catalog provider failed to implement create_catalog_list"
+                        .to_string(),
+                ))?(codec);
+        let foreign_catalog_list: Arc<dyn CatalogProviderList> =
             (&ffi_catalog_list).into();
 
         ctx.register_catalog_list(foreign_catalog_list);

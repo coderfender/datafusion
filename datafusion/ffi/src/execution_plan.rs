@@ -211,7 +211,7 @@ fn pass_runtime_to_children(
     runtime: &Handle,
 ) -> Result<Option<Arc<dyn ExecutionPlan>>> {
     let mut updated_children = false;
-    let plan_is_foreign = plan.as_any().is::<ForeignExecutionPlan>();
+    let plan_is_foreign = plan.is::<ForeignExecutionPlan>();
 
     let children = plan
         .children()
@@ -230,7 +230,7 @@ fn pass_runtime_to_children(
             // `ForeignExecutionPlan`. In this case wrap the plan in a `ForeignExecutionPlan`
             // because when we call `with_new_children` below it will extract the
             // FFI plan that does contain the runtime.
-            if plan_is_foreign && !child.as_any().is::<ForeignExecutionPlan>() {
+            if plan_is_foreign && !child.is::<ForeignExecutionPlan>() {
                 updated_children = true;
                 let ffi_child = FFI_ExecutionPlan::new(child, Some(runtime.clone()));
                 let foreign_child = ForeignExecutionPlan::try_from(ffi_child);
@@ -252,7 +252,7 @@ impl FFI_ExecutionPlan {
     pub fn new(mut plan: Arc<dyn ExecutionPlan>, runtime: Option<Handle>) -> Self {
         // Note to developers: `pass_runtime_to_children` relies on the logic here to
         // get the underlying FFI plan during calls to `new_with_children`.
-        if let Some(plan) = plan.as_any().downcast_ref::<ForeignExecutionPlan>() {
+        if let Some(plan) = plan.downcast_ref::<ForeignExecutionPlan>() {
             return plan.plan.clone();
         }
 
@@ -366,10 +366,6 @@ impl ExecutionPlan for ForeignExecutionPlan {
         &self.name
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
     fn properties(&self) -> &Arc<PlanProperties> {
         &self.properties
     }
@@ -477,10 +473,6 @@ pub mod tests {
     impl ExecutionPlan for EmptyExec {
         fn name(&self) -> &'static str {
             "empty-exec"
-        }
-
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
         }
 
         fn properties(&self) -> &Arc<PlanProperties> {
@@ -607,16 +599,11 @@ pub mod tests {
 
         // Verify local libraries can be downcast to their original
         let foreign_plan: Arc<dyn ExecutionPlan> = (&ffi_plan).try_into().unwrap();
-        assert!(foreign_plan.as_any().downcast_ref::<EmptyExec>().is_some());
+        assert!(foreign_plan.is::<EmptyExec>());
 
         // Verify different library markers generate foreign providers
         ffi_plan.library_marker_id = crate::mock_foreign_marker_id;
         let foreign_plan: Arc<dyn ExecutionPlan> = (&ffi_plan).try_into().unwrap();
-        assert!(
-            foreign_plan
-                .as_any()
-                .downcast_ref::<ForeignExecutionPlan>()
-                .is_some()
-        );
+        assert!(foreign_plan.is::<ForeignExecutionPlan>());
     }
 }

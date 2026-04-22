@@ -491,7 +491,6 @@ impl LogicalExtensionCodec for ForeignLogicalExtensionCodec {
 
 #[cfg(test)]
 mod tests {
-    use std::any::Any;
     use std::sync::Arc;
 
     use arrow::array::record_batch;
@@ -565,7 +564,7 @@ mod tests {
         ) -> Result<()> {
             buf.push(Self::MAGIC_NUMBER);
 
-            if !node.as_any().is::<MemTable>() {
+            if !node.is::<MemTable>() {
                 return exec_err!("TestExtensionCodec only expects MemTable");
             };
 
@@ -640,7 +639,7 @@ mod tests {
             ctx.task_ctx().as_ref(),
         )?;
 
-        assert!(returned_table.as_any().is::<MemTable>());
+        assert!(returned_table.is::<MemTable>());
 
         Ok(())
     }
@@ -661,7 +660,7 @@ mod tests {
 
         let returned_udf = foreign_codec.try_decode_udf(udf.name(), &bytes)?;
 
-        assert!((returned_udf.inner().as_ref() as &dyn Any).is::<AbsFunc>());
+        assert!(returned_udf.inner().is::<AbsFunc>());
 
         Ok(())
     }
@@ -682,7 +681,7 @@ mod tests {
 
         let returned_udf = foreign_codec.try_decode_udaf(udf.name(), &bytes)?;
 
-        assert!(returned_udf.inner().as_any().is::<Sum>());
+        assert!(returned_udf.inner().is::<Sum>());
 
         Ok(())
     }
@@ -706,7 +705,7 @@ mod tests {
 
         let returned_udf = foreign_codec.try_decode_udwf(udf.name(), &bytes)?;
 
-        assert!(returned_udf.inner().as_any().is::<Rank>());
+        assert!(returned_udf.inner().is::<Rank>());
 
         Ok(())
     }
