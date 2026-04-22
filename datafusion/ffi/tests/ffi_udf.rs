@@ -22,7 +22,7 @@ mod tests {
     use arrow::array::{Array, AsArray};
     use arrow::datatypes::DataType;
     use datafusion::common::record_batch;
-    use datafusion::error::Result;
+    use datafusion::error::{DataFusionError, Result};
     use datafusion::logical_expr::{ScalarUDF, ScalarUDFImpl};
     use datafusion::prelude::{SessionContext, col};
     use datafusion_execution::config::SessionConfig;
@@ -38,7 +38,13 @@ mod tests {
     async fn test_scalar_udf() -> Result<()> {
         let module = get_module()?;
 
-        let ffi_abs_func = (module.create_scalar_udf)();
+        let ffi_abs_func =
+            module
+                .create_scalar_udf()
+                .ok_or(DataFusionError::NotImplemented(
+                    "External table provider failed to implement create_scalar_udf"
+                        .to_string(),
+                ))?();
         let foreign_abs_func: Arc<dyn ScalarUDFImpl> = (&ffi_abs_func).into();
 
         let udf = ScalarUDF::new_from_shared_impl(foreign_abs_func);
@@ -70,7 +76,13 @@ mod tests {
     async fn test_nullary_scalar_udf() -> Result<()> {
         let module = get_module()?;
 
-        let ffi_abs_func = (module.create_nullary_udf)();
+        let ffi_abs_func =
+            module
+                .create_nullary_udf()
+                .ok_or(DataFusionError::NotImplemented(
+                    "External table provider failed to implement create_scalar_udf"
+                        .to_string(),
+                ))?();
         let foreign_abs_func: Arc<dyn ScalarUDFImpl> = (&ffi_abs_func).into();
 
         let udf = ScalarUDF::new_from_shared_impl(foreign_abs_func);
@@ -95,7 +107,12 @@ mod tests {
     async fn test_config_on_scalar_udf() -> Result<()> {
         let module = get_module()?;
 
-        let ffi_udf = (module.create_timezone_udf)();
+        let ffi_udf =
+            module
+                .create_timezone_udf()
+                .ok_or(DataFusionError::NotImplemented(
+                    "External module failed to implement create_timezone_udf".to_string(),
+                ))?();
         let foreign_udf: Arc<dyn ScalarUDFImpl> = (&ffi_udf).into();
 
         let udf = ScalarUDF::new_from_shared_impl(foreign_udf);

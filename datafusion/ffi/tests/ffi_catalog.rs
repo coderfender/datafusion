@@ -24,6 +24,7 @@ mod tests {
     use std::sync::Arc;
 
     use datafusion::catalog::{CatalogProvider, CatalogProviderList};
+    use datafusion_common::DataFusionError;
     use datafusion_ffi::tests::utils::get_module;
 
     #[tokio::test]

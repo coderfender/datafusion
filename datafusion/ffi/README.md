@@ -73,6 +73,31 @@ with your library and then to connect it to DataFusion using this crate.
 Alternatively, you could use [bindgen] to interface directly to the [FFI] provided
 by this crate, but that is currently not supported.
 
+## Stabby Usage
+
+This crate uses [stabby] for ABI-stable types like `stabby::string::String` and
+`stabby::vec::Vec`. We chose stabby because [abi_stable] is no longer actively
+maintained.
+
+We intentionally use `#[repr(C)]` for our struct definitions instead of stabby's
+`#[stabby::stabby]` macro. The reason is that stabby's `IStable` trait (required
+by the macro) demands that all inner types also implement `IStable`. This creates
+challenges for our use case:
+
+1. **Arrow types**: Arrow's FFI types like `FFI_ArrowSchema` do not implement
+   `IStable`, and adding such implementations would be laborious and error-prone.
+
+2. **Self-referential function pointers**: Many of our FFI structs contain
+   function pointers that reference `&Self`, which complicates `IStable`
+   implementations.
+
+3. **FFI_Option and FFI_Result**: For similar reasons, we provide our own
+   `FFI_Option<T>` and `FFI_Result<T, E>` types using `#[repr(C, u8)]` instead
+   of stabby's `Option` and `Result`, which require inner types to be `IStable`.
+
+This hybrid approach gives us stabby's maintained, ABI-stable collection types
+while retaining flexibility for our complex FFI struct layouts.
+
 ## FFI Boundary
 
 We expect this crate to be used by both sides of the FFI Boundary. This should
@@ -198,6 +223,7 @@ and it is easy to implement on any struct that implements `Session`.
 [rust abi]: https://doc.rust-lang.org/reference/abi.html
 [ffi]: https://doc.rust-lang.org/nomicon/ffi.html
 [stabby]: https://crates.io/crates/stabby
+[abi_stable]: https://crates.io/crates/abi_stable
 [async-ffi]: https://crates.io/crates/async-ffi
 [bindgen]: https://crates.io/crates/bindgen
 [`datafusion-python`]: https://datafusion.apache.org/python/

@@ -20,19 +20,6 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::sync::Arc;
 
-use crate::arrow_wrappers::WrappedSchema;
-use crate::execution::FFI_TaskContext;
-use crate::execution_plan::FFI_ExecutionPlan;
-use crate::physical_expr::FFI_PhysicalExpr;
-use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
-use crate::session::config::FFI_SessionConfig;
-use crate::udaf::FFI_AggregateUDF;
-use crate::udf::FFI_ScalarUDF;
-use crate::udwf::FFI_WindowUDF;
-use crate::util::FFIResult;
-use crate::{df_result, rresult, rresult_return};
-use abi_stable::StableAbi;
-use abi_stable::std_types::{RHashMap, RResult, RStr, RString, RVec};
 use arrow_schema::SchemaRef;
 use arrow_schema::ffi::FFI_ArrowSchema;
 use async_ffi::{FfiFuture, FutureExt};
@@ -62,6 +49,18 @@ use stabby::str::Str as SStr;
 use stabby::string::String as SString;
 use stabby::vec::Vec as SVec;
 use tokio::runtime::Handle;
+
+use crate::arrow_wrappers::WrappedSchema;
+use crate::execution::FFI_TaskContext;
+use crate::execution_plan::FFI_ExecutionPlan;
+use crate::physical_expr::FFI_PhysicalExpr;
+use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
+use crate::session::config::FFI_SessionConfig;
+use crate::udaf::FFI_AggregateUDF;
+use crate::udf::FFI_ScalarUDF;
+use crate::udwf::FFI_WindowUDF;
+use crate::util::{FFI_Result, FFIResult};
+use crate::{df_result, sresult, sresult_return};
 
 pub mod config;
 
@@ -639,9 +638,11 @@ impl Session for ForeignSession {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
 
     use arrow_schema::{DataType, Field, Schema};
     use datafusion::execution::SessionStateBuilder;
+    use datafusion_common::DataFusionError;
     use datafusion_expr::col;
     use datafusion_expr::registry::FunctionRegistry;
     use datafusion_proto::logical_plan::DefaultLogicalExtensionCodec;
