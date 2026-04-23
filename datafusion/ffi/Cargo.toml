@@ -69,8 +69,8 @@ futures = { workspace = true }
 libloading = "0.8"
 log = { workspace = true }
 prost = { workspace = true }
-stabby = "72.1.1"
 semver = "1.0.28"
+stabby = "72.1.1"
 tokio = { workspace = true }
 
 [dev-dependencies]
