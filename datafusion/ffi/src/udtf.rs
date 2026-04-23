@@ -107,6 +107,7 @@ unsafe extern "C" fn call_fn_wrapper(
         codec.as_ref()
     ));
 
+    #[expect(deprecated)]
     let table_provider = sresult_return!(udtf_inner.call(&args));
     FFIResult::Ok(FFI_TableProvider::new_with_ffi_codec(
         table_provider,
