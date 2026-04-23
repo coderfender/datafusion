@@ -76,27 +76,27 @@ by this crate, but that is currently not supported.
 ## Stabby Usage
 
 This crate uses [stabby] for ABI-stable types like `stabby::string::String` and
-`stabby::vec::Vec`. We chose stabby because [abi_stable] is no longer actively
-maintained.
+`stabby::vec::Vec`.
 
 We intentionally use `#[repr(C)]` for our struct definitions instead of stabby's
-`#[stabby::stabby]` macro. The reason is that stabby's `IStable` trait (required
-by the macro) demands that all inner types also implement `IStable`. This creates
-challenges for our use case:
+`#[stabby::stabby]` macro for the following reasons:
 
-1. **Arrow types**: Arrow's FFI types like `FFI_ArrowSchema` do not implement
+1. **Build time**: The heavy macro use greatly increases build time, especially
+   given our many interdependent types.
+
+2. **Code complexity**: Creating stabby dyn pointers for trait objects leads to
+   more complex code patterns with very little added benefit.
+
+3. **Arrow types**: Arrow's FFI types like `FFI_ArrowSchema` do not implement
    `IStable`, and adding such implementations would be laborious and error-prone.
 
-2. **Self-referential function pointers**: Many of our FFI structs contain
-   function pointers that reference `&Self`, which complicates `IStable`
-   implementations.
+4. **FFI_Option and FFIResult**: We provide our own `FFI_Option<T>` and
+   `FFIResult<T>` types using `#[repr(C, u8)]` because stabby's `Option`
+   and `Result` require inner types to be `IStable`.
 
-3. **FFI_Option and FFIResult**: For similar reasons, we provide our own
-   `FFI_Option<T>` and `FFIResult<T>` types using `#[repr(C, u8)]` instead
-   of stabby's `Option` and `Result`, which require inner types to be `IStable`.
-
-This hybrid approach gives us stabby's maintained, ABI-stable collection types
-while retaining flexibility for our complex FFI struct layouts.
+Instead, we use stabby for its convenient ABI-stable collection types like
+`stabby::string::String` and `stabby::vec::Vec`, while retaining flexibility
+for our complex FFI struct layouts.
 
 ## FFI Boundary
 
