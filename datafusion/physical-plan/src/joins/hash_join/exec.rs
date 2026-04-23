@@ -65,7 +65,7 @@ use crate::{
     metrics::{ExecutionPlanMetricsSet, MetricsSet},
 };
 
-use arrow::array::{Array, ArrayRef, BooleanBufferBuilder, Int16Array, Int32Array, UInt32Array};
+use arrow::array::{Array, ArrayRef, BooleanBufferBuilder, Int32Array, UInt32Array};
 use arrow::compute::concat_batches;
 use arrow::datatypes::SchemaRef;
 use arrow::record_batch::RecordBatch;
@@ -2008,7 +2008,7 @@ async fn collect_left_input(
                     .unwrap()
                     .values()
                     .iter()
-                    .map(|&v| v as u32)
+                    .map(|&v| v)
                     .collect(),
                 DataType::Int32 => key_col
                     .as_any()

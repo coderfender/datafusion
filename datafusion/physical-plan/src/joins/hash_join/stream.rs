@@ -745,7 +745,8 @@ impl HashJoinStream {
                     }
                 };
                 let indices = UInt32Array::from(right_indices);
-                let columns: Vec<ArrayRef> = state.batch
+                let columns: Vec<ArrayRef> = state
+                    .batch
                     .columns()
                     .iter()
                     .map(|col| arrow::compute::take(col, &indices, None))
