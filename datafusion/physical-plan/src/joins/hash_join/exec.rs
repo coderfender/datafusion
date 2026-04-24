@@ -1993,9 +1993,7 @@ async fn collect_left_input(
     };
 
     let (join_hash_map, batch, left_values) =
-        if config.execution.perfect_hash_join_small_build_threshold > 0
-            && should_use_roaring_bitmap(&join_type, &on_left, &schema, has_filter)
-        {
+        if should_use_roaring_bitmap(&join_type, &on_left, &schema, has_filter) {
             let batch = concat_batches(&schema, &batches)?;
             let left_values = evaluate_expressions_to_arrays(&on_left, &batch)?;
             let key_col = &left_values[0];
@@ -2004,17 +2002,16 @@ async fn collect_left_input(
                     .as_any()
                     .downcast_ref::<UInt32Array>()
                     .unwrap()
-                    .values()
                     .iter()
-                    .map(|&v| v)
+                    .flatten()
                     .collect(),
                 DataType::Int32 => key_col
                     .as_any()
                     .downcast_ref::<Int32Array>()
                     .unwrap()
-                    .values()
                     .iter()
-                    .map(|&v| v as u32)
+                    .flatten()
+                    .map(|v| v as u32)
                     .collect(),
                 _ => return internal_err!("unsupported data type to build bitmap"),
             };
