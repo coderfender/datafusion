@@ -762,8 +762,13 @@ impl HashJoinStream {
                     })
                     .collect();
                 // Use try_new_with_options to handle empty columns case (e.g., count(*))
-                let options = RecordBatchOptions::new().with_row_count(Some(filtered_batch.num_rows()));
-                let batch = RecordBatch::try_new_with_options(Arc::clone(&self.schema), columns, &options)?;
+                let options = RecordBatchOptions::new()
+                    .with_row_count(Some(filtered_batch.num_rows()));
+                let batch = RecordBatch::try_new_with_options(
+                    Arc::clone(&self.schema),
+                    columns,
+                    &options,
+                )?;
                 self.output_buffer.push_batch(batch)?;
                 self.state = HashJoinStreamState::FetchProbeBatch;
                 return Ok(StatefulStreamResult::Continue);
