@@ -171,96 +171,78 @@ fn bench_hash_join_semi_anti(c: &mut Criterion) {
     {
         let left_batches = build_batches(build_rows, build_rows, 0, &s);
         let right_batches = build_batches(probe_rows, build_rows, 0, &s);
-        group.bench_function(
-            BenchmarkId::new("right_semi_d100_h100", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightSemi, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_semi_d100_h100", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightSemi, &rt)
+            })
+        });
     }
 
     // RightSemi - 100% Density, 10% hit rate
     {
         let left_batches = build_batches(build_rows, build_rows, 0, &s);
         let right_batches = build_batches(probe_rows, build_rows * 10, 0, &s);
-        group.bench_function(
-            BenchmarkId::new("right_semi_d100_h10", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightSemi, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_semi_d100_h10", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightSemi, &rt)
+            })
+        });
     }
 
     // RightSemi - 50% Density, 100% hit rate
     {
         let left_batches = build_batches_sparse(build_rows, build_rows, 0, 2, &s);
         let right_batches = build_batches_sparse(probe_rows, build_rows, 0, 2, &s);
-        group.bench_function(
-            BenchmarkId::new("right_semi_d50_h100", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightSemi, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_semi_d50_h100", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightSemi, &rt)
+            })
+        });
     }
 
     // RightSemi - 50% Density, 10% hit rate
     {
         let left_batches = build_batches_sparse(build_rows, build_rows, 0, 2, &s);
         let right_batches = build_batches_sparse(probe_rows, build_rows * 10, 0, 2, &s);
-        group.bench_function(
-            BenchmarkId::new("right_semi_d50_h10", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightSemi, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_semi_d50_h10", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightSemi, &rt)
+            })
+        });
     }
 
     // RightSemi - 10% Density, 100% hit rate
     {
         let left_batches = build_batches_sparse(build_rows, build_rows, 0, 10, &s);
         let right_batches = build_batches_sparse(probe_rows, build_rows, 0, 10, &s);
-        group.bench_function(
-            BenchmarkId::new("right_semi_d10_h100", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightSemi, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_semi_d10_h100", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightSemi, &rt)
+            })
+        });
     }
 
     // RightSemi - 10% Density, 10% hit rate
     {
         let left_batches = build_batches_sparse(build_rows, build_rows, 0, 10, &s);
         let right_batches = build_batches_sparse(probe_rows, build_rows * 10, 0, 10, &s);
-        group.bench_function(
-            BenchmarkId::new("right_semi_d10_h10", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightSemi, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_semi_d10_h10", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightSemi, &rt)
+            })
+        });
     }
 
     // =========================================================================
@@ -271,96 +253,78 @@ fn bench_hash_join_semi_anti(c: &mut Criterion) {
     {
         let left_batches = build_batches(build_rows, build_rows, 0, &s);
         let right_batches = build_batches(probe_rows, build_rows, 0, &s);
-        group.bench_function(
-            BenchmarkId::new("right_anti_d100_h100", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightAnti, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_anti_d100_h100", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightAnti, &rt)
+            })
+        });
     }
 
     // RightAnti - 100% Density, 10% hit rate (90% output)
     {
         let left_batches = build_batches(build_rows, build_rows, 0, &s);
         let right_batches = build_batches(probe_rows, build_rows * 10, 0, &s);
-        group.bench_function(
-            BenchmarkId::new("right_anti_d100_h10", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightAnti, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_anti_d100_h10", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightAnti, &rt)
+            })
+        });
     }
 
     // RightAnti - 50% Density, 100% hit rate (no output)
     {
         let left_batches = build_batches_sparse(build_rows, build_rows, 0, 2, &s);
         let right_batches = build_batches_sparse(probe_rows, build_rows, 0, 2, &s);
-        group.bench_function(
-            BenchmarkId::new("right_anti_d50_h100", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightAnti, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_anti_d50_h100", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightAnti, &rt)
+            })
+        });
     }
 
     // RightAnti - 50% Density, 10% hit rate (90% output)
     {
         let left_batches = build_batches_sparse(build_rows, build_rows, 0, 2, &s);
         let right_batches = build_batches_sparse(probe_rows, build_rows * 10, 0, 2, &s);
-        group.bench_function(
-            BenchmarkId::new("right_anti_d50_h10", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightAnti, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_anti_d50_h10", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightAnti, &rt)
+            })
+        });
     }
 
     // RightAnti - 10% Density, 100% hit rate (no output)
     {
         let left_batches = build_batches_sparse(build_rows, build_rows, 0, 10, &s);
         let right_batches = build_batches_sparse(probe_rows, build_rows, 0, 10, &s);
-        group.bench_function(
-            BenchmarkId::new("right_anti_d10_h100", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightAnti, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_anti_d10_h100", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightAnti, &rt)
+            })
+        });
     }
 
     // RightAnti - 10% Density, 10% hit rate (90% output)
     {
         let left_batches = build_batches_sparse(build_rows, build_rows, 0, 10, &s);
         let right_batches = build_batches_sparse(probe_rows, build_rows * 10, 0, 10, &s);
-        group.bench_function(
-            BenchmarkId::new("right_anti_d10_h10", probe_rows),
-            |b| {
-                b.iter(|| {
-                    let left = make_exec(&left_batches, &s);
-                    let right = make_exec(&right_batches, &s);
-                    do_hash_join(left, right, JoinType::RightAnti, &rt)
-                })
-            },
-        );
+        group.bench_function(BenchmarkId::new("right_anti_d10_h10", probe_rows), |b| {
+            b.iter(|| {
+                let left = make_exec(&left_batches, &s);
+                let right = make_exec(&right_batches, &s);
+                do_hash_join(left, right, JoinType::RightAnti, &rt)
+            })
+        });
     }
 
     group.finish();
