@@ -20,7 +20,7 @@
 use std::{fmt::Display, hash::Hash, sync::Arc};
 
 use arrow::{
-    array::{ArrayRef, UInt64Array},
+    array::{Array, ArrayRef, BooleanArray, Int32Array, UInt32Array, UInt64Array},
     datatypes::{DataType, Schema},
     record_batch::RecordBatch,
 };
@@ -335,10 +335,43 @@ impl PhysicalExpr for HashTableLookupExpr {
                 let array = map.contain_keys(&join_keys)?;
                 Ok(ColumnarValue::Array(Arc::new(array)))
             }
-            Map::RoaringMap(_bimap) => {
-                internal_err!(
-                    "Roaringbitmap is not support for partitioned hash evaluation"
-                )
+            Map::RoaringMap(bitmap) => {
+                // For roaring bitmap, check membership directly
+                // Roaring only supports u32 values, so we handle Int32 and UInt32 types
+                if join_keys.len() != 1 {
+                    return internal_err!(
+                        "Roaring bitmap expects 1 join key, but got {}",
+                        join_keys.len()
+                    );
+                }
+                let key_col = &join_keys[0];
+                let contains: BooleanArray = match key_col.data_type() {
+                    DataType::Int32 => {
+                        let arr = key_col
+                            .as_any()
+                            .downcast_ref::<Int32Array>()
+                            .expect("Expected Int32Array");
+                        arr.iter()
+                            .map(|v| v.map(|val| bitmap.contains(val as u32)))
+                            .collect()
+                    }
+                    DataType::UInt32 => {
+                        let arr = key_col
+                            .as_any()
+                            .downcast_ref::<UInt32Array>()
+                            .expect("Expected UInt32Array");
+                        arr.iter()
+                            .map(|v| v.map(|val| bitmap.contains(val)))
+                            .collect()
+                    }
+                    other => {
+                        return internal_err!(
+                            "Unsupported data type for roaring bitmap: {:?}",
+                            other
+                        );
+                    }
+                };
+                Ok(ColumnarValue::Array(Arc::new(contains)))
             }
         }
     }
