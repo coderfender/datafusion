@@ -49,7 +49,7 @@ use crate::{
 use arrow::array::{Array, ArrayRef, BooleanArray, Int32Array, UInt32Array, UInt64Array};
 use arrow::compute::filter_record_batch;
 use arrow::datatypes::{Schema, SchemaRef};
-use arrow::record_batch::RecordBatch;
+use arrow::record_batch::{RecordBatch, RecordBatchOptions};
 use arrow_schema::DataType;
 use datafusion_common::{
     JoinSide, JoinType, NullEquality, Result, internal_datafusion_err, internal_err,
@@ -751,7 +751,19 @@ impl HashJoinStream {
                         return internal_err!("unsupported data type for roaring bitmap");
                     }
                 };
-                let batch = filter_record_batch(&state.batch, &mask)?;
+                let filtered_batch = filter_record_batch(&state.batch, &mask)?;
+                // Apply column projection to match output schema
+                let columns: Vec<ArrayRef> = self
+                    .column_indices
+                    .iter()
+                    .map(|col_idx| {
+                        // For RightSemi/RightAnti, all columns are from the right (probe) side
+                        Arc::clone(filtered_batch.column(col_idx.index))
+                    })
+                    .collect();
+                // Use try_new_with_options to handle empty columns case (e.g., count(*))
+                let options = RecordBatchOptions::new().with_row_count(Some(filtered_batch.num_rows()));
+                let batch = RecordBatch::try_new_with_options(Arc::clone(&self.schema), columns, &options)?;
                 self.output_buffer.push_batch(batch)?;
                 self.state = HashJoinStreamState::FetchProbeBatch;
                 return Ok(StatefulStreamResult::Continue);
