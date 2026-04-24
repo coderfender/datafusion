@@ -1993,7 +1993,9 @@ async fn collect_left_input(
     };
 
     let (join_hash_map, batch, left_values) =
-        if should_use_roaring_bitmap(&join_type, &on_left, &schema, has_filter) {
+        if config.execution.perfect_hash_join_small_build_threshold > 0
+            && should_use_roaring_bitmap(&join_type, &on_left, &schema, has_filter)
+        {
             let batch = concat_batches(&schema, &batches)?;
             let left_values = evaluate_expressions_to_arrays(&on_left, &batch)?;
             let key_col = &left_values[0];
