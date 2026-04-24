@@ -21,6 +21,7 @@ use std::{fmt::Display, hash::Hash, sync::Arc};
 
 use arrow::{
     array::{Array, ArrayRef, BooleanArray, Int32Array, UInt32Array, UInt64Array},
+    buffer::BooleanBuffer,
     datatypes::{DataType, Schema},
     record_batch::RecordBatch,
 };
@@ -351,18 +352,26 @@ impl PhysicalExpr for HashTableLookupExpr {
                             .as_any()
                             .downcast_ref::<Int32Array>()
                             .expect("Expected Int32Array");
-                        arr.iter()
-                            .map(|v| v.map(|val| bitmap.contains(val as u32)))
-                            .collect()
+                        let buffer = BooleanBuffer::collect_bool(arr.len(), |i| {
+                            if arr.is_null(i) {
+                                return false;
+                            }
+                            bitmap.contains(arr.value(i) as u32)
+                        });
+                        BooleanArray::new(buffer, None)
                     }
                     DataType::UInt32 => {
                         let arr = key_col
                             .as_any()
                             .downcast_ref::<UInt32Array>()
                             .expect("Expected UInt32Array");
-                        arr.iter()
-                            .map(|v| v.map(|val| bitmap.contains(val)))
-                            .collect()
+                        let buffer = BooleanBuffer::collect_bool(arr.len(), |i| {
+                            if arr.is_null(i) {
+                                return false;
+                            }
+                            bitmap.contains(arr.value(i))
+                        });
+                        BooleanArray::new(buffer, None)
                     }
                     other => {
                         return internal_err!(

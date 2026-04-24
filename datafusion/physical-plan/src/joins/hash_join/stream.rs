@@ -47,6 +47,7 @@ use crate::{
 };
 
 use arrow::array::{Array, ArrayRef, BooleanArray, Int32Array, UInt32Array, UInt64Array};
+use arrow::buffer::BooleanBuffer;
 use arrow::compute::filter_record_batch;
 use arrow::datatypes::{Schema, SchemaRef};
 use arrow::record_batch::{RecordBatch, RecordBatchOptions};
@@ -731,21 +732,23 @@ impl HashJoinStream {
                 let mask: BooleanArray = match key_col.data_type() {
                     DataType::Int32 => {
                         let arr = key_col.as_any().downcast_ref::<Int32Array>().unwrap();
-                        arr.iter()
-                            .map(|v| match v {
-                                Some(v) => bitmap.contains(v as u32) == is_semi,
-                                None => !is_semi,
-                            })
-                            .collect()
+                        let buffer = BooleanBuffer::collect_bool(arr.len(), |i| {
+                            if arr.is_null(i) {
+                                return !is_semi;
+                            }
+                            bitmap.contains(arr.value(i) as u32) == is_semi
+                        });
+                        BooleanArray::new(buffer, None)
                     }
                     DataType::UInt32 => {
                         let arr = key_col.as_any().downcast_ref::<UInt32Array>().unwrap();
-                        arr.iter()
-                            .map(|v| match v {
-                                Some(v) => bitmap.contains(v) == is_semi,
-                                None => !is_semi,
-                            })
-                            .collect()
+                        let buffer = BooleanBuffer::collect_bool(arr.len(), |i| {
+                            if arr.is_null(i) {
+                                return !is_semi;
+                            }
+                            bitmap.contains(arr.value(i)) == is_semi
+                        });
+                        BooleanArray::new(buffer, None)
                     }
                     _ => {
                         return internal_err!("unsupported data type for roaring bitmap");
