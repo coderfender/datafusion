@@ -42,7 +42,7 @@ use crate::arrow_wrappers::{WrappedArray, WrappedSchema};
 use crate::config::FFI_ConfigOptions;
 use crate::expr::columnar_value::FFI_ColumnarValue;
 use crate::util::{
-    FFIResult, rvec_wrapped_to_vec_datatype, vec_datatype_to_rvec_wrapped,
+    FFI_Result, rvec_wrapped_to_vec_datatype, vec_datatype_to_rvec_wrapped,
 };
 use crate::volatility::FFI_Volatility;
 use crate::{df_result, sresult, sresult_return};
@@ -66,7 +66,7 @@ pub struct FFI_ScalarUDF {
     pub return_field_from_args: unsafe extern "C" fn(
         udf: &Self,
         args: FFI_ReturnFieldArgs,
-    ) -> FFIResult<WrappedSchema>,
+    ) -> FFI_Result<WrappedSchema>,
 
     /// Execute the underlying [`ScalarUDF`] and return the result as a `FFI_ArrowArray`
     /// within an AbiStable wrapper.
@@ -77,7 +77,7 @@ pub struct FFI_ScalarUDF {
         num_rows: usize,
         return_field: WrappedSchema,
         config_options: FFI_ConfigOptions,
-    ) -> FFIResult<FFI_ColumnarValue>,
+    ) -> FFI_Result<FFI_ColumnarValue>,
 
     /// See [`ScalarUDFImpl`] for details on short_circuits
     pub short_circuits: bool,
@@ -89,7 +89,7 @@ pub struct FFI_ScalarUDF {
     pub coerce_types: unsafe extern "C" fn(
         udf: &Self,
         arg_types: SVec<WrappedSchema>,
-    ) -> FFIResult<SVec<WrappedSchema>>,
+    ) -> FFI_Result<SVec<WrappedSchema>>,
 
     /// Used to create a clone on the provider of the udf. This should
     /// only need to be called by the receiver of the udf.
@@ -125,7 +125,7 @@ impl FFI_ScalarUDF {
 unsafe extern "C" fn return_field_from_args_fn_wrapper(
     udf: &FFI_ScalarUDF,
     args: FFI_ReturnFieldArgs,
-) -> FFIResult<WrappedSchema> {
+) -> FFI_Result<WrappedSchema> {
     let args: ForeignReturnFieldArgsOwned = sresult_return!((&args).try_into());
     let args_ref: ForeignReturnFieldArgs = (&args).into();
 
@@ -141,7 +141,7 @@ unsafe extern "C" fn return_field_from_args_fn_wrapper(
 unsafe extern "C" fn coerce_types_fn_wrapper(
     udf: &FFI_ScalarUDF,
     arg_types: SVec<WrappedSchema>,
-) -> FFIResult<SVec<WrappedSchema>> {
+) -> FFI_Result<SVec<WrappedSchema>> {
     let arg_types = sresult_return!(rvec_wrapped_to_vec_datatype(&arg_types));
 
     let arg_fields = arg_types
@@ -164,7 +164,7 @@ unsafe extern "C" fn invoke_with_args_fn_wrapper(
     number_rows: usize,
     return_field: WrappedSchema,
     config_options: FFI_ConfigOptions,
-) -> FFIResult<FFI_ColumnarValue> {
+) -> FFI_Result<FFI_ColumnarValue> {
     unsafe {
         let args = args
             .into_iter()

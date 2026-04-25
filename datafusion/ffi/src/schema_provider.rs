@@ -32,7 +32,7 @@ use tokio::runtime::Handle;
 use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::table_provider::{FFI_TableProvider, ForeignTableProvider};
-use crate::util::{FFI_Option, FFIResult};
+use crate::util::{FFI_Option, FFI_Result};
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`SchemaProvider`] across FFI boundaries.
@@ -47,7 +47,7 @@ pub struct FFI_SchemaProvider {
         provider: &Self,
         name: SString,
     ) -> FfiFuture<
-        FFIResult<FFI_Option<FFI_TableProvider>>,
+        FFI_Result<FFI_Option<FFI_TableProvider>>,
     >,
 
     pub register_table: unsafe extern "C" fn(
@@ -55,13 +55,13 @@ pub struct FFI_SchemaProvider {
         name: SString,
         table: FFI_TableProvider,
     )
-        -> FFIResult<FFI_Option<FFI_TableProvider>>,
+        -> FFI_Result<FFI_Option<FFI_TableProvider>>,
 
     pub deregister_table:
         unsafe extern "C" fn(
             provider: &Self,
             name: SString,
-        ) -> FFIResult<FFI_Option<FFI_TableProvider>>,
+        ) -> FFI_Result<FFI_Option<FFI_TableProvider>>,
 
     pub table_exist: unsafe extern "C" fn(provider: &Self, name: SString) -> bool,
 
@@ -125,7 +125,7 @@ unsafe extern "C" fn table_names_fn_wrapper(
 unsafe extern "C" fn table_fn_wrapper(
     provider: &FFI_SchemaProvider,
     name: SString,
-) -> FfiFuture<FFIResult<FFI_Option<FFI_TableProvider>>> {
+) -> FfiFuture<FFI_Result<FFI_Option<FFI_TableProvider>>> {
     unsafe {
         let runtime = provider.runtime();
         let logical_codec = provider.logical_codec.clone();
@@ -138,7 +138,7 @@ unsafe extern "C" fn table_fn_wrapper(
                 })
                 .into();
 
-            FFIResult::Ok(table)
+            FFI_Result::Ok(table)
         }
         .into_ffi()
     }
@@ -148,7 +148,7 @@ unsafe extern "C" fn register_table_fn_wrapper(
     provider: &FFI_SchemaProvider,
     name: SString,
     table: FFI_TableProvider,
-) -> FFIResult<FFI_Option<FFI_TableProvider>> {
+) -> FFI_Result<FFI_Option<FFI_TableProvider>> {
     unsafe {
         let runtime = provider.runtime();
         let logical_codec = provider.logical_codec.clone();
@@ -161,14 +161,14 @@ unsafe extern "C" fn register_table_fn_wrapper(
                 FFI_TableProvider::new_with_ffi_codec(t, true, runtime, logical_codec)
             });
 
-        FFIResult::Ok(returned_table.into())
+        FFI_Result::Ok(returned_table.into())
     }
 }
 
 unsafe extern "C" fn deregister_table_fn_wrapper(
     provider: &FFI_SchemaProvider,
     name: SString,
-) -> FFIResult<FFI_Option<FFI_TableProvider>> {
+) -> FFI_Result<FFI_Option<FFI_TableProvider>> {
     unsafe {
         let runtime = provider.runtime();
         let logical_codec = provider.logical_codec.clone();
@@ -179,7 +179,7 @@ unsafe extern "C" fn deregister_table_fn_wrapper(
                 FFI_TableProvider::new_with_ffi_codec(t, true, runtime, logical_codec)
             });
 
-        FFIResult::Ok(returned_table.into())
+        FFI_Result::Ok(returned_table.into())
     }
 }
 

@@ -28,7 +28,7 @@ use tokio::runtime::Handle;
 
 use crate::config::FFI_ConfigOptions;
 use crate::execution_plan::FFI_ExecutionPlan;
-use crate::util::FFIResult;
+use crate::util::FFI_Result;
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`PhysicalOptimizerRule`] across FFI boundaries.
@@ -39,7 +39,7 @@ pub struct FFI_PhysicalOptimizerRule {
         &Self,
         plan: &FFI_ExecutionPlan,
         config: FFI_ConfigOptions,
-    ) -> FFIResult<FFI_ExecutionPlan>,
+    ) -> FFI_Result<FFI_ExecutionPlan>,
 
     pub name: unsafe extern "C" fn(&Self) -> SString,
 
@@ -88,14 +88,14 @@ unsafe extern "C" fn optimize_fn_wrapper(
     rule: &FFI_PhysicalOptimizerRule,
     plan: &FFI_ExecutionPlan,
     config: FFI_ConfigOptions,
-) -> FFIResult<FFI_ExecutionPlan> {
+) -> FFI_Result<FFI_ExecutionPlan> {
     let runtime = rule.runtime();
     let rule = rule.inner();
     let plan: Arc<dyn ExecutionPlan> = sresult_return!(plan.try_into());
     let config = sresult_return!(ConfigOptions::try_from(config));
     let optimized_plan = sresult_return!(rule.optimize(plan, &config));
 
-    FFIResult::Ok(FFI_ExecutionPlan::new(optimized_plan, runtime))
+    FFI_Result::Ok(FFI_ExecutionPlan::new(optimized_plan, runtime))
 }
 
 unsafe extern "C" fn name_fn_wrapper(rule: &FFI_PhysicalOptimizerRule) -> SString {

@@ -25,9 +25,9 @@ use stabby::vec::Vec as SVec;
 use crate::arrow_wrappers::WrappedSchema;
 
 // Re-export for convenience
-pub use crate::ffi_option::{FFI_Option, FFIResult};
+pub use crate::ffi_option::{FFI_Option, FFI_Result};
 
-/// This macro is a helpful conversion utility to convert from an FFIResult to a
+/// This macro is a helpful conversion utility to convert from an FFI_Result to a
 /// DataFusion result.
 #[macro_export]
 macro_rules! df_result {
@@ -41,21 +41,21 @@ macro_rules! df_result {
     };
 }
 
-/// This macro is a helpful conversion utility to convert from a DataFusion Result to an FFIResult.
+/// This macro is a helpful conversion utility to convert from a DataFusion Result to an FFI_Result.
 #[macro_export]
 macro_rules! sresult {
     ( $x:expr ) => {
         match $x {
-            Ok(v) => $crate::ffi_option::FFIResult::Ok(v),
-            Err(e) => $crate::ffi_option::FFIResult::Err(stabby::string::String::from(
+            Ok(v) => $crate::ffi_option::FFI_Result::Ok(v),
+            Err(e) => $crate::ffi_option::FFI_Result::Err(stabby::string::String::from(
                 e.to_string().as_str(),
             )),
         }
     };
 }
 
-/// This macro is a helpful conversion utility to convert from a DataFusion Result to an FFIResult
-/// and to also call return when it is an error. Since you cannot use `?` on an FFIResult, this is designed
+/// This macro is a helpful conversion utility to convert from a DataFusion Result to an FFI_Result
+/// and to also call return when it is an error. Since you cannot use `?` on an FFI_Result, this is designed
 /// to mimic the pattern.
 #[macro_export]
 macro_rules! sresult_return {
@@ -63,7 +63,7 @@ macro_rules! sresult_return {
         match $x {
             Ok(v) => v,
             Err(e) => {
-                return $crate::ffi_option::FFIResult::Err(stabby::string::String::from(
+                return $crate::ffi_option::FFI_Result::Err(stabby::string::String::from(
                     e.to_string().as_str(),
                 ))
             }
@@ -131,7 +131,7 @@ pub(crate) mod tests {
     use stabby::string::String as SString;
 
     use crate::execution::FFI_TaskContextProvider;
-    use crate::ffi_option::FFIResult;
+    use crate::ffi_option::FFI_Result;
 
     pub(crate) fn test_session_and_ctx() -> (Arc<SessionContext>, FFI_TaskContextProvider)
     {
@@ -142,8 +142,8 @@ pub(crate) mod tests {
         (ctx, task_ctx_provider)
     }
 
-    fn wrap_result(result: Result<String, DataFusionError>) -> FFIResult<String> {
-        FFIResult::Ok(sresult_return!(result))
+    fn wrap_result(result: Result<String, DataFusionError>) -> FFI_Result<String> {
+        FFI_Result::Ok(sresult_return!(result))
     }
 
     #[test]
@@ -151,8 +151,9 @@ pub(crate) mod tests {
         const VALID_VALUE: &str = "valid_value";
         const ERROR_VALUE: &str = "error_value";
 
-        let ok_r_result: FFIResult<SString> = FFIResult::Ok(SString::from(VALID_VALUE));
-        let err_r_result: FFIResult<SString> = FFIResult::Err(SString::from(ERROR_VALUE));
+        let ok_r_result: FFI_Result<SString> = FFI_Result::Ok(SString::from(VALID_VALUE));
+        let err_r_result: FFI_Result<SString> =
+            FFI_Result::Err(SString::from(ERROR_VALUE));
 
         let returned_ok_result = df_result!(ok_r_result);
         assert!(returned_ok_result.is_ok());

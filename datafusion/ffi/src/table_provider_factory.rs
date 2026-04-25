@@ -36,7 +36,7 @@ use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::session::{FFI_SessionRef, ForeignSession};
 use crate::table_provider::{FFI_TableProvider, ForeignTableProvider};
-use crate::util::FFIResult;
+use crate::util::FFI_Result;
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`TableProviderFactory`] across FFI boundaries.
@@ -62,7 +62,7 @@ pub struct FFI_TableProviderFactory {
         factory: &Self,
         session: FFI_SessionRef,
         cmd_serialized: SVec<u8>,
-    ) -> FfiFuture<FFIResult<FFI_TableProvider>>,
+    ) -> FfiFuture<FFI_Result<FFI_TableProvider>>,
 
     logical_codec: FFI_LogicalExtensionCodec,
 
@@ -186,14 +186,14 @@ unsafe extern "C" fn create_fn_wrapper(
     factory: &FFI_TableProviderFactory,
     session: FFI_SessionRef,
     cmd_serialized: SVec<u8>,
-) -> FfiFuture<FFIResult<FFI_TableProvider>> {
+) -> FfiFuture<FFI_Result<FFI_TableProvider>> {
     let factory = factory.clone();
 
     async move {
         let provider = sresult_return!(
             create_fn_wrapper_impl(factory, session, cmd_serialized).await
         );
-        FFIResult::Ok(provider)
+        FFI_Result::Ok(provider)
     }
     .into_ffi()
 }

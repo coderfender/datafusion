@@ -22,7 +22,7 @@ use datafusion_common::{DataFusionError, ffi_datafusion_err};
 use datafusion_execution::{TaskContext, TaskContextProvider};
 
 use crate::execution::task_ctx::FFI_TaskContext;
-use crate::util::FFIResult;
+use crate::util::FFI_Result;
 use crate::{df_result, sresult};
 
 /// Struct for accessing the [`TaskContext`]. This method contains a weak
@@ -37,7 +37,7 @@ pub struct FFI_TaskContextProvider {
     /// gone out of scope. This function will return an error if the weakly
     /// held reference to the underlying [`TaskContextProvider`] is no longer
     /// available.
-    pub task_ctx: unsafe extern "C" fn(&Self) -> FFIResult<FFI_TaskContext>,
+    pub task_ctx: unsafe extern "C" fn(&Self) -> FFI_Result<FFI_TaskContext>,
 
     /// Used to create a clone on the task context accessor. This should
     /// only need to be called by the receiver of the plan.
@@ -74,7 +74,7 @@ impl FFI_TaskContextProvider {
 
 unsafe extern "C" fn task_ctx_fn_wrapper(
     ctx_provider: &FFI_TaskContextProvider,
-) -> FFIResult<FFI_TaskContext> {
+) -> FFI_Result<FFI_TaskContext> {
     unsafe {
         sresult!(
             ctx_provider

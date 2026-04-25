@@ -31,7 +31,7 @@ use stabby::vec::Vec as SVec;
 
 use super::range::FFI_Range;
 use crate::arrow_wrappers::WrappedArray;
-use crate::util::FFIResult;
+use crate::util::FFI_Result;
 use crate::{df_result, sresult, sresult_return};
 
 /// A stable struct for sharing [`PartitionEvaluator`] across FFI boundaries.
@@ -44,25 +44,25 @@ pub struct FFI_PartitionEvaluator {
         evaluator: &mut Self,
         values: SVec<WrappedArray>,
         num_rows: usize,
-    ) -> FFIResult<WrappedArray>,
+    ) -> FFI_Result<WrappedArray>,
 
     pub evaluate: unsafe extern "C" fn(
         evaluator: &mut Self,
         values: SVec<WrappedArray>,
         range: FFI_Range,
-    ) -> FFIResult<SVec<u8>>,
+    ) -> FFI_Result<SVec<u8>>,
 
     pub evaluate_all_with_rank: unsafe extern "C" fn(
         evaluator: &Self,
         num_rows: usize,
         ranks_in_partition: SVec<FFI_Range>,
-    ) -> FFIResult<WrappedArray>,
+    ) -> FFI_Result<WrappedArray>,
 
     pub get_range: unsafe extern "C" fn(
         evaluator: &Self,
         idx: usize,
         n_rows: usize,
-    ) -> FFIResult<FFI_Range>,
+    ) -> FFI_Result<FFI_Range>,
 
     pub is_causal: bool,
 
@@ -110,7 +110,7 @@ unsafe extern "C" fn evaluate_all_fn_wrapper(
     evaluator: &mut FFI_PartitionEvaluator,
     values: SVec<WrappedArray>,
     num_rows: usize,
-) -> FFIResult<WrappedArray> {
+) -> FFI_Result<WrappedArray> {
     unsafe {
         let inner = evaluator.inner_mut();
 
@@ -135,7 +135,7 @@ unsafe extern "C" fn evaluate_fn_wrapper(
     evaluator: &mut FFI_PartitionEvaluator,
     values: SVec<WrappedArray>,
     range: FFI_Range,
-) -> FFIResult<SVec<u8>> {
+) -> FFI_Result<SVec<u8>> {
     unsafe {
         let inner = evaluator.inner_mut();
 
@@ -152,7 +152,7 @@ unsafe extern "C" fn evaluate_fn_wrapper(
         let proto_result: datafusion_proto::protobuf::ScalarValue =
             sresult_return!((&scalar_result).try_into());
 
-        FFIResult::Ok(proto_result.encode_to_vec().into_iter().collect())
+        FFI_Result::Ok(proto_result.encode_to_vec().into_iter().collect())
     }
 }
 
@@ -160,7 +160,7 @@ unsafe extern "C" fn evaluate_all_with_rank_fn_wrapper(
     evaluator: &FFI_PartitionEvaluator,
     num_rows: usize,
     ranks_in_partition: SVec<FFI_Range>,
-) -> FFIResult<WrappedArray> {
+) -> FFI_Result<WrappedArray> {
     unsafe {
         let inner = evaluator.inner();
 
@@ -183,7 +183,7 @@ unsafe extern "C" fn get_range_fn_wrapper(
     evaluator: &FFI_PartitionEvaluator,
     idx: usize,
     n_rows: usize,
-) -> FFIResult<FFI_Range> {
+) -> FFI_Result<FFI_Range> {
     unsafe {
         let inner = evaluator.inner();
         let range = inner.get_range(idx, n_rows).map(FFI_Range::from);

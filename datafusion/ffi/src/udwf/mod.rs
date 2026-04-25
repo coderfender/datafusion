@@ -43,7 +43,7 @@ mod range;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
-    FFI_Option, FFIResult, rvec_wrapped_to_vec_datatype, rvec_wrapped_to_vec_fieldref,
+    FFI_Option, FFI_Result, rvec_wrapped_to_vec_datatype, rvec_wrapped_to_vec_fieldref,
     vec_datatype_to_rvec_wrapped, vec_fieldref_to_rvec_wrapped,
 };
 use crate::volatility::FFI_Volatility;
@@ -66,13 +66,13 @@ pub struct FFI_WindowUDF {
         udwf: &Self,
         args: FFI_PartitionEvaluatorArgs,
     )
-        -> FFIResult<FFI_PartitionEvaluator>,
+        -> FFI_Result<FFI_PartitionEvaluator>,
 
     pub field: unsafe extern "C" fn(
         udwf: &Self,
         input_types: SVec<WrappedSchema>,
         display_name: SString,
-    ) -> FFIResult<WrappedSchema>,
+    ) -> FFI_Result<WrappedSchema>,
 
     /// Performs type coercion. To simply this interface, all UDFs are treated as having
     /// user defined signatures, which will in turn call coerce_types to be called. This
@@ -81,7 +81,7 @@ pub struct FFI_WindowUDF {
     pub coerce_types: unsafe extern "C" fn(
         udf: &Self,
         arg_types: SVec<WrappedSchema>,
-    ) -> FFIResult<SVec<WrappedSchema>>,
+    ) -> FFI_Result<SVec<WrappedSchema>>,
 
     pub sort_options: FFI_Option<FFI_SortOptions>,
 
@@ -121,7 +121,7 @@ impl FFI_WindowUDF {
 unsafe extern "C" fn partition_evaluator_fn_wrapper(
     udwf: &FFI_WindowUDF,
     args: FFI_PartitionEvaluatorArgs,
-) -> FFIResult<FFI_PartitionEvaluator> {
+) -> FFI_Result<FFI_PartitionEvaluator> {
     unsafe {
         let inner = udwf.inner();
 
@@ -130,7 +130,7 @@ unsafe extern "C" fn partition_evaluator_fn_wrapper(
         let evaluator =
             sresult_return!(inner.partition_evaluator_factory((&args).into()));
 
-        FFIResult::Ok(evaluator.into())
+        FFI_Result::Ok(evaluator.into())
     }
 }
 
@@ -138,7 +138,7 @@ unsafe extern "C" fn field_fn_wrapper(
     udwf: &FFI_WindowUDF,
     input_fields: SVec<WrappedSchema>,
     display_name: SString,
-) -> FFIResult<WrappedSchema> {
+) -> FFI_Result<WrappedSchema> {
     unsafe {
         let inner = udwf.inner();
 
@@ -151,14 +151,14 @@ unsafe extern "C" fn field_fn_wrapper(
 
         let schema = Arc::new(Schema::new(vec![field]));
 
-        FFIResult::Ok(WrappedSchema::from(schema))
+        FFI_Result::Ok(WrappedSchema::from(schema))
     }
 }
 
 unsafe extern "C" fn coerce_types_fn_wrapper(
     udwf: &FFI_WindowUDF,
     arg_types: SVec<WrappedSchema>,
-) -> FFIResult<SVec<WrappedSchema>> {
+) -> FFI_Result<SVec<WrappedSchema>> {
     unsafe {
         let inner = udwf.inner();
 

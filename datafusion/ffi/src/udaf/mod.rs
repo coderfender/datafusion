@@ -43,7 +43,7 @@ use std::sync::Arc;
 
 use crate::arrow_wrappers::WrappedSchema;
 use crate::util::{
-    FFI_Option, FFIResult, rvec_wrapped_to_vec_datatype, rvec_wrapped_to_vec_fieldref,
+    FFI_Option, FFI_Result, rvec_wrapped_to_vec_datatype, rvec_wrapped_to_vec_fieldref,
     vec_datatype_to_rvec_wrapped, vec_fieldref_to_rvec_wrapped,
 };
 use crate::volatility::FFI_Volatility;
@@ -71,7 +71,7 @@ pub struct FFI_AggregateUDF {
     pub return_field: unsafe extern "C" fn(
         udaf: &Self,
         arg_fields: SVec<WrappedSchema>,
-    ) -> FFIResult<WrappedSchema>,
+    ) -> FFI_Result<WrappedSchema>,
 
     /// FFI equivalent to the `is_nullable` of a [`AggregateUDF`]
     pub is_nullable: bool,
@@ -84,14 +84,14 @@ pub struct FFI_AggregateUDF {
     pub accumulator: unsafe extern "C" fn(
         udaf: &FFI_AggregateUDF,
         args: FFI_AccumulatorArgs,
-    ) -> FFIResult<FFI_Accumulator>,
+    ) -> FFI_Result<FFI_Accumulator>,
 
     /// FFI equivalent to [`AggregateUDF::create_sliding_accumulator`]
     pub create_sliding_accumulator: unsafe extern "C" fn(
         udaf: &FFI_AggregateUDF,
         args: FFI_AccumulatorArgs,
     )
-        -> FFIResult<FFI_Accumulator>,
+        -> FFI_Result<FFI_Accumulator>,
 
     /// FFI equivalent to [`AggregateUDF::state_fields`]
     pub state_fields: unsafe extern "C" fn(
@@ -101,21 +101,21 @@ pub struct FFI_AggregateUDF {
         return_field: WrappedSchema,
         ordering_fields: SVec<SVec<u8>>,
         is_distinct: bool,
-    ) -> FFIResult<SVec<SVec<u8>>>,
+    ) -> FFI_Result<SVec<SVec<u8>>>,
 
     /// FFI equivalent to [`AggregateUDF::create_groups_accumulator`]
     pub create_groups_accumulator:
         unsafe extern "C" fn(
             udaf: &FFI_AggregateUDF,
             args: FFI_AccumulatorArgs,
-        ) -> FFIResult<FFI_GroupsAccumulator>,
+        ) -> FFI_Result<FFI_GroupsAccumulator>,
 
     /// FFI equivalent to [`AggregateUDF::with_beneficial_ordering`]
     pub with_beneficial_ordering:
         unsafe extern "C" fn(
             udaf: &FFI_AggregateUDF,
             beneficial_ordering: bool,
-        ) -> FFIResult<FFI_Option<FFI_AggregateUDF>>,
+        ) -> FFI_Result<FFI_Option<FFI_AggregateUDF>>,
 
     /// FFI equivalent to [`AggregateUDF::order_sensitivity`]
     pub order_sensitivity:
@@ -128,7 +128,7 @@ pub struct FFI_AggregateUDF {
     pub coerce_types: unsafe extern "C" fn(
         udf: &Self,
         arg_types: SVec<WrappedSchema>,
-    ) -> FFIResult<SVec<WrappedSchema>>,
+    ) -> FFI_Result<SVec<WrappedSchema>>,
 
     /// Used to create a clone on the provider of the udaf. This should
     /// only need to be called by the receiver of the udaf.
@@ -166,7 +166,7 @@ impl FFI_AggregateUDF {
 unsafe extern "C" fn return_field_fn_wrapper(
     udaf: &FFI_AggregateUDF,
     arg_fields: SVec<WrappedSchema>,
-) -> FFIResult<WrappedSchema> {
+) -> FFI_Result<WrappedSchema> {
     unsafe {
         let udaf = udaf.inner();
 
@@ -186,7 +186,7 @@ unsafe extern "C" fn return_field_fn_wrapper(
 unsafe extern "C" fn accumulator_fn_wrapper(
     udaf: &FFI_AggregateUDF,
     args: FFI_AccumulatorArgs,
-) -> FFIResult<FFI_Accumulator> {
+) -> FFI_Result<FFI_Accumulator> {
     unsafe {
         let udaf = udaf.inner();
 
@@ -202,7 +202,7 @@ unsafe extern "C" fn accumulator_fn_wrapper(
 unsafe extern "C" fn create_sliding_accumulator_fn_wrapper(
     udaf: &FFI_AggregateUDF,
     args: FFI_AccumulatorArgs,
-) -> FFIResult<FFI_Accumulator> {
+) -> FFI_Result<FFI_Accumulator> {
     unsafe {
         let udaf = udaf.inner();
 
@@ -218,7 +218,7 @@ unsafe extern "C" fn create_sliding_accumulator_fn_wrapper(
 unsafe extern "C" fn create_groups_accumulator_fn_wrapper(
     udaf: &FFI_AggregateUDF,
     args: FFI_AccumulatorArgs,
-) -> FFIResult<FFI_GroupsAccumulator> {
+) -> FFI_Result<FFI_GroupsAccumulator> {
     unsafe {
         let udaf = udaf.inner();
 
@@ -250,7 +250,7 @@ unsafe extern "C" fn groups_accumulator_supported_fn_wrapper(
 unsafe extern "C" fn with_beneficial_ordering_fn_wrapper(
     udaf: &FFI_AggregateUDF,
     beneficial_ordering: bool,
-) -> FFIResult<FFI_Option<FFI_AggregateUDF>> {
+) -> FFI_Result<FFI_Option<FFI_AggregateUDF>> {
     unsafe {
         let udaf = udaf.inner().as_ref().clone();
 
@@ -263,7 +263,7 @@ unsafe extern "C" fn with_beneficial_ordering_fn_wrapper(
         .flatten()
         .map(|func| FFI_AggregateUDF::from(Arc::new(func)));
 
-        FFIResult::Ok(result.into())
+        FFI_Result::Ok(result.into())
     }
 }
 
@@ -274,7 +274,7 @@ unsafe extern "C" fn state_fields_fn_wrapper(
     return_field: WrappedSchema,
     ordering_fields: SVec<SVec<u8>>,
     is_distinct: bool,
-) -> FFIResult<SVec<SVec<u8>>> {
+) -> FFI_Result<SVec<SVec<u8>>> {
     unsafe {
         let udaf = udaf.inner();
 
@@ -317,7 +317,7 @@ unsafe extern "C" fn state_fields_fn_wrapper(
         .map(|field| field.encode_to_vec().into_iter().collect())
         .collect();
 
-        FFIResult::Ok(state_fields)
+        FFI_Result::Ok(state_fields)
     }
 }
 
@@ -330,7 +330,7 @@ unsafe extern "C" fn order_sensitivity_fn_wrapper(
 unsafe extern "C" fn coerce_types_fn_wrapper(
     udaf: &FFI_AggregateUDF,
     arg_types: SVec<WrappedSchema>,
-) -> FFIResult<SVec<WrappedSchema>> {
+) -> FFI_Result<SVec<WrappedSchema>> {
     unsafe {
         let udaf = udaf.inner();
 

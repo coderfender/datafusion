@@ -45,7 +45,7 @@ use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::session::{FFI_SessionRef, ForeignSession};
 use crate::table_source::{FFI_TableProviderFilterPushDown, FFI_TableType};
-use crate::util::{FFI_Option, FFIResult};
+use crate::util::{FFI_Option, FFI_Result};
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`TableProvider`] across FFI boundaries.
@@ -110,7 +110,7 @@ pub struct FFI_TableProvider {
         projections: FFI_Option<SVec<usize>>,
         filters_serialized: SVec<u8>,
         limit: FFI_Option<usize>,
-    ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
+    ) -> FfiFuture<FFI_Result<FFI_ExecutionPlan>>,
 
     /// Return the type of table. See [`TableType`] for options.
     table_type: unsafe extern "C" fn(provider: &Self) -> FFI_TableType,
@@ -122,7 +122,8 @@ pub struct FFI_TableProvider {
         unsafe extern "C" fn(
             provider: &FFI_TableProvider,
             filters_serialized: SVec<u8>,
-        ) -> FFIResult<SVec<FFI_TableProviderFilterPushDown>>,
+        )
+            -> FFI_Result<SVec<FFI_TableProviderFilterPushDown>>,
     >,
 
     insert_into: unsafe extern "C" fn(
@@ -130,7 +131,7 @@ pub struct FFI_TableProvider {
         session: FFI_SessionRef,
         input: &FFI_ExecutionPlan,
         insert_op: FFI_InsertOp,
-    ) -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
+    ) -> FfiFuture<FFI_Result<FFI_ExecutionPlan>>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 
@@ -213,7 +214,7 @@ fn supports_filters_pushdown_internal(
 unsafe extern "C" fn supports_filters_pushdown_fn_wrapper(
     provider: &FFI_TableProvider,
     filters_serialized: SVec<u8>,
-) -> FFIResult<SVec<FFI_TableProviderFilterPushDown>> {
+) -> FFI_Result<SVec<FFI_TableProviderFilterPushDown>> {
     let logical_codec: Arc<dyn LogicalExtensionCodec> = (&provider.logical_codec).into();
     let task_ctx = sresult_return!(<Arc<TaskContext>>::try_from(
         &provider.logical_codec.task_ctx_provider
@@ -233,7 +234,7 @@ unsafe extern "C" fn scan_fn_wrapper(
     projections: FFI_Option<SVec<usize>>,
     filters_serialized: SVec<u8>,
     limit: FFI_Option<usize>,
-) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
+) -> FfiFuture<FFI_Result<FFI_ExecutionPlan>> {
     let task_ctx: Result<Arc<TaskContext>, DataFusionError> =
         (&provider.logical_codec.task_ctx_provider).try_into();
     let runtime = provider.runtime().clone();
@@ -276,7 +277,7 @@ unsafe extern "C" fn scan_fn_wrapper(
                 .await
         );
 
-        FFIResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
+        FFI_Result::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
     }
     .into_ffi()
 }
@@ -286,7 +287,7 @@ unsafe extern "C" fn insert_into_fn_wrapper(
     session: FFI_SessionRef,
     input: &FFI_ExecutionPlan,
     insert_op: FFI_InsertOp,
-) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
+) -> FfiFuture<FFI_Result<FFI_ExecutionPlan>> {
     let runtime = provider.runtime().clone();
     let internal_provider = Arc::clone(provider.inner());
     let input = input.clone();
@@ -313,7 +314,7 @@ unsafe extern "C" fn insert_into_fn_wrapper(
                 .await
         );
 
-        FFIResult::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
+        FFI_Result::Ok(FFI_ExecutionPlan::new(plan, runtime.clone()))
     }
     .into_ffi()
 }

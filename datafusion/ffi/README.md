@@ -90,8 +90,8 @@ We intentionally use `#[repr(C)]` for our struct definitions instead of stabby's
 3. **Arrow types**: Arrow's FFI types like `FFI_ArrowSchema` do not implement
    `IStable`, and adding such implementations would be laborious and error-prone.
 
-4. **FFI_Option and FFIResult**: We provide our own `FFI_Option<T>` and
-   `FFIResult<T>` types using `#[repr(C, u8)]` because stabby's `Option`
+4. **FFI_Option and FFI_Result**: We provide our own `FFI_Option<T>` and
+   `FFI_Result<T>` types using `#[repr(C, u8)]` because stabby's `Option`
    and `Result` require inner types to be `IStable`.
 
 Instead, we use stabby for its convenient ABI-stable collection types like

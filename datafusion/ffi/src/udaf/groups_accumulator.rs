@@ -30,7 +30,7 @@ use datafusion_expr::{EmitTo, GroupsAccumulator};
 use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::{WrappedArray, WrappedSchema};
-use crate::util::{FFI_Option, FFIResult};
+use crate::util::{FFI_Option, FFI_Result};
 use crate::{df_result, sresult, sresult_return};
 
 /// A stable struct for sharing [`GroupsAccumulator`] across FFI boundaries.
@@ -45,20 +45,20 @@ pub struct FFI_GroupsAccumulator {
         group_indices: SVec<usize>,
         opt_filter: FFI_Option<WrappedArray>,
         total_num_groups: usize,
-    ) -> FFIResult<()>,
+    ) -> FFI_Result<()>,
 
     // Evaluate and return a ScalarValues as protobuf bytes
     pub evaluate: unsafe extern "C" fn(
         accumulator: &mut Self,
         emit_to: FFI_EmitTo,
-    ) -> FFIResult<WrappedArray>,
+    ) -> FFI_Result<WrappedArray>,
 
     pub size: unsafe extern "C" fn(accumulator: &Self) -> usize,
 
     pub state: unsafe extern "C" fn(
         accumulator: &mut Self,
         emit_to: FFI_EmitTo,
-    ) -> FFIResult<SVec<WrappedArray>>,
+    ) -> FFI_Result<SVec<WrappedArray>>,
 
     pub merge_batch: unsafe extern "C" fn(
         accumulator: &mut Self,
@@ -66,13 +66,13 @@ pub struct FFI_GroupsAccumulator {
         group_indices: SVec<usize>,
         opt_filter: FFI_Option<WrappedArray>,
         total_num_groups: usize,
-    ) -> FFIResult<()>,
+    ) -> FFI_Result<()>,
 
     pub convert_to_state: unsafe extern "C" fn(
         accumulator: &Self,
         values: SVec<WrappedArray>,
         opt_filter: FFI_Option<WrappedArray>,
-    ) -> FFIResult<SVec<WrappedArray>>,
+    ) -> FFI_Result<SVec<WrappedArray>>,
 
     pub supports_convert_to_state: bool,
 
@@ -138,7 +138,7 @@ unsafe extern "C" fn update_batch_fn_wrapper(
     group_indices: SVec<usize>,
     opt_filter: FFI_Option<WrappedArray>,
     total_num_groups: usize,
-) -> FFIResult<()> {
+) -> FFI_Result<()> {
     unsafe {
         let accumulator = accumulator.inner_mut();
         let values = sresult_return!(process_values(values));
@@ -157,7 +157,7 @@ unsafe extern "C" fn update_batch_fn_wrapper(
 unsafe extern "C" fn evaluate_fn_wrapper(
     accumulator: &mut FFI_GroupsAccumulator,
     emit_to: FFI_EmitTo,
-) -> FFIResult<WrappedArray> {
+) -> FFI_Result<WrappedArray> {
     unsafe {
         let accumulator = accumulator.inner_mut();
 
@@ -177,7 +177,7 @@ unsafe extern "C" fn size_fn_wrapper(accumulator: &FFI_GroupsAccumulator) -> usi
 unsafe extern "C" fn state_fn_wrapper(
     accumulator: &mut FFI_GroupsAccumulator,
     emit_to: FFI_EmitTo,
-) -> FFIResult<SVec<WrappedArray>> {
+) -> FFI_Result<SVec<WrappedArray>> {
     unsafe {
         let accumulator = accumulator.inner_mut();
 
@@ -197,7 +197,7 @@ unsafe extern "C" fn merge_batch_fn_wrapper(
     group_indices: SVec<usize>,
     opt_filter: FFI_Option<WrappedArray>,
     total_num_groups: usize,
-) -> FFIResult<()> {
+) -> FFI_Result<()> {
     unsafe {
         let accumulator = accumulator.inner_mut();
         let values = sresult_return!(process_values(values));
@@ -217,7 +217,7 @@ unsafe extern "C" fn convert_to_state_fn_wrapper(
     accumulator: &FFI_GroupsAccumulator,
     values: SVec<WrappedArray>,
     opt_filter: FFI_Option<WrappedArray>,
-) -> FFIResult<SVec<WrappedArray>> {
+) -> FFI_Result<SVec<WrappedArray>> {
     unsafe {
         let accumulator = accumulator.inner();
         let values = sresult_return!(process_values(values));

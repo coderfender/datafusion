@@ -1,0 +1,530 @@
+{
+  "context": {
+    "benchmark_version": "53.1.0",
+    "datafusion_version": "53.1.0",
+    "num_cpus": 18,
+    "start_time": 1777012590,
+    "arguments": [
+      "hj",
+      "--path",
+      "benchmarks/data/tpch_sf10",
+      "-o",
+      "hj_baseline.json"
+    ]
+  },
+  "queries": [
+    {
+      "query": "Query 1_density=1_prob_hit=1_25*1.5M",
+      "iterations": [
+        {
+          "elapsed": 13.777042,
+          "row_count": 1500000
+        },
+        {
+          "elapsed": 1.387334,
+          "row_count": 1500000
+        },
+        {
+          "elapsed": 1.554,
+          "row_count": 1500000
+        }
+      ],
+      "start_time": 1777012590,
+      "success": true
+    },
+    {
+      "query": "Query 2_density=0.026_prob_hit=1_25*1.5M",
+      "iterations": [
+        {
+          "elapsed": 1.843125,
+          "row_count": 1500000
+        },
+        {
+          "elapsed": 1.377917,
+          "row_count": 1500000
+        },
+        {
+          "elapsed": 1.331084,
+          "row_count": 1500000
+        }
+      ],
+      "start_time": 1777012590,
+      "success": true
+    },
+    {
+      "query": "Query 3_density=1_prob_hit=1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 99.09920799999999,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 47.138958,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 45.609125,
+          "row_count": 59986052
+        }
+      ],
+      "start_time": 1777012590,
+      "success": true
+    },
+    {
+      "query": "Query 4_density=1_prob_hit=0.1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 49.680875,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 49.995167,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 49.334,
+          "row_count": 5998253
+        }
+      ],
+      "start_time": 1777012590,
+      "success": true
+    },
+    {
+      "query": "Query 5_density=0.75_prob_hit=1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 47.396125,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 55.534625,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 47.654834,
+          "row_count": 59986052
+        }
+      ],
+      "start_time": 1777012590,
+      "success": true
+    },
+    {
+      "query": "Query 6_density=0.75_prob_hit=0.1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 85.984583,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 86.29858399999999,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 86.704792,
+          "row_count": 5998253
+        }
+      ],
+      "start_time": 1777012590,
+      "success": true
+    },
+    {
+      "query": "Query 7_density=0.5_prob_hit=1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 42.922292,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 43.653040999999995,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 43.948042,
+          "row_count": 59986052
+        }
+      ],
+      "start_time": 1777012591,
+      "success": true
+    },
+    {
+      "query": "Query 8_density=0.5_prob_hit=0.1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 81.39399999999999,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 81.647834,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 81.712959,
+          "row_count": 5998253
+        }
+      ],
+      "start_time": 1777012591,
+      "success": true
+    },
+    {
+      "query": "Query 9_density=0.2_prob_hit=1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 47.838875,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 45.934999999999995,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 45.766584,
+          "row_count": 59986052
+        }
+      ],
+      "start_time": 1777012591,
+      "success": true
+    },
+    {
+      "query": "Query 10_density=0.2_prob_hit=0.1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 83.163958,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 87.178583,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 82.851125,
+          "row_count": 5998253
+        }
+      ],
+      "start_time": 1777012591,
+      "success": true
+    },
+    {
+      "query": "Query 11_density=0.1_prob_hit=1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 65.33979099999999,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 64.04329200000001,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 62.58691600000001,
+          "row_count": 59986052
+        }
+      ],
+      "start_time": 1777012591,
+      "success": true
+    },
+    {
+      "query": "Query 12_density=0.1_prob_hit=0.1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 109.38000000000001,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 106.380708,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 106.19304100000001,
+          "row_count": 5998253
+        }
+      ],
+      "start_time": 1777012592,
+      "success": true
+    },
+    {
+      "query": "Query 13_density=0.01_prob_hit=1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 62.977791,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 63.79837500000001,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 61.39775,
+          "row_count": 59986052
+        }
+      ],
+      "start_time": 1777012592,
+      "success": true
+    },
+    {
+      "query": "Query 14_density=0.01_prob_hit=0.1_100K*60M",
+      "iterations": [
+        {
+          "elapsed": 102.487,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 104.13095899999999,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 103.175542,
+          "row_count": 5998253
+        }
+      ],
+      "start_time": 1777012592,
+      "success": true
+    },
+    {
+      "query": "Query 15_density=0.2_prob_hit=0.1_100K_(20%_dups)*60M",
+      "iterations": [
+        {
+          "elapsed": 64.667542,
+          "row_count": 8398179
+        },
+        {
+          "elapsed": 61.823958,
+          "row_count": 8398179
+        },
+        {
+          "elapsed": 62.696459,
+          "row_count": 8398179
+        }
+      ],
+      "start_time": 1777012592,
+      "success": true
+    },
+    {
+      "query": "Query 16_density=1_prob_hit=1_100K*60M_RightSemi",
+      "iterations": [
+        {
+          "elapsed": 55.873959,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 56.888542,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 55.9075,
+          "row_count": 59986052
+        }
+      ],
+      "start_time": 1777012593,
+      "success": true
+    },
+    {
+      "query": "Query 17_density=1_prob_hit=0.1_100K*60M_RightSemi",
+      "iterations": [
+        {
+          "elapsed": 58.015625,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 56.748459000000004,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 54.479791999999996,
+          "row_count": 5998253
+        }
+      ],
+      "start_time": 1777012593,
+      "success": true
+    },
+    {
+      "query": "Query 18_density=0.5_prob_hit=1_100K*60M_RightSemi",
+      "iterations": [
+        {
+          "elapsed": 57.33775,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 58.537082999999996,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 58.465208,
+          "row_count": 59986052
+        }
+      ],
+      "start_time": 1777012593,
+      "success": true
+    },
+    {
+      "query": "Query 19_density=0.5_prob_hit=0.1_100K*60M_RightSemi",
+      "iterations": [
+        {
+          "elapsed": 84.738375,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 86.11645800000001,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 85.883709,
+          "row_count": 5998253
+        }
+      ],
+      "start_time": 1777012593,
+      "success": true
+    },
+    {
+      "query": "Query 20_density=0.1_prob_hit=1_100K*60M_RightSemi",
+      "iterations": [
+        {
+          "elapsed": 86.404042,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 76.62487499999999,
+          "row_count": 59986052
+        },
+        {
+          "elapsed": 78.998625,
+          "row_count": 59986052
+        }
+      ],
+      "start_time": 1777012593,
+      "success": true
+    },
+    {
+      "query": "Query 21_density=0.1_prob_hit=0.1_100K*60M_RightSemi",
+      "iterations": [
+        {
+          "elapsed": 124.042333,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 115.947417,
+          "row_count": 5998253
+        },
+        {
+          "elapsed": 110.799292,
+          "row_count": 5998253
+        }
+      ],
+      "start_time": 1777012594,
+      "success": true
+    },
+    {
+      "query": "Query 22_density=1_prob_hit=1_100K*60M_RightAnti",
+      "iterations": [
+        {
+          "elapsed": 47.636083,
+          "row_count": 0
+        },
+        {
+          "elapsed": 46.664208,
+          "row_count": 0
+        },
+        {
+          "elapsed": 47.023583,
+          "row_count": 0
+        }
+      ],
+      "start_time": 1777012594,
+      "success": true
+    },
+    {
+      "query": "Query 23_density=1_prob_hit=0.1_100K*60M_RightAnti",
+      "iterations": [
+        {
+          "elapsed": 62.087542,
+          "row_count": 53987799
+        },
+        {
+          "elapsed": 63.781959,
+          "row_count": 53987799
+        },
+        {
+          "elapsed": 64.50725,
+          "row_count": 53987799
+        }
+      ],
+      "start_time": 1777012594,
+      "success": true
+    },
+    {
+      "query": "Query 24_density=0.5_prob_hit=1_100K*60M_RightAnti",
+      "iterations": [
+        {
+          "elapsed": 50.409834000000004,
+          "row_count": 0
+        },
+        {
+          "elapsed": 48.54425,
+          "row_count": 0
+        },
+        {
+          "elapsed": 48.496292000000004,
+          "row_count": 0
+        }
+      ],
+      "start_time": 1777012594,
+      "success": true
+    },
+    {
+      "query": "Query 25_density=0.5_prob_hit=0.1_100K*60M_RightAnti",
+      "iterations": [
+        {
+          "elapsed": 91.721334,
+          "row_count": 53987799
+        },
+        {
+          "elapsed": 92.180834,
+          "row_count": 53987799
+        },
+        {
+          "elapsed": 91.835708,
+          "row_count": 53987799
+        }
+      ],
+      "start_time": 1777012595,
+      "success": true
+    },
+    {
+      "query": "Query 26_density=0.1_prob_hit=1_100K*60M_RightAnti",
+      "iterations": [
+        {
+          "elapsed": 65.99275,
+          "row_count": 0
+        },
+        {
+          "elapsed": 69.18575,
+          "row_count": 0
+        },
+        {
+          "elapsed": 65.299333,
+          "row_count": 0
+        }
+      ],
+      "start_time": 1777012595,
+      "success": true
+    },
+    {
+      "query": "Query 27_density=0.1_prob_hit=0.1_100K*60M_RightAnti",
+      "iterations": [
+        {
+          "elapsed": 117.834958,
+          "row_count": 53987799
+        },
+        {
+          "elapsed": 115.84991699999999,
+          "row_count": 53987799
+        },
+        {
+          "elapsed": 119.287041,
+          "row_count": 53987799
+        }
+      ],
+      "start_time": 1777012595,
+      "success": true
+    }
+  ]
+}

@@ -30,7 +30,7 @@ use prost::Message;
 use stabby::vec::Vec as SVec;
 
 use crate::arrow_wrappers::WrappedArray;
-use crate::util::FFIResult;
+use crate::util::FFI_Result;
 use crate::{df_result, sresult, sresult_return};
 
 /// A stable struct for sharing [`Accumulator`] across FFI boundaries.
@@ -42,24 +42,24 @@ pub struct FFI_Accumulator {
     pub update_batch: unsafe extern "C" fn(
         accumulator: &mut Self,
         values: SVec<WrappedArray>,
-    ) -> FFIResult<()>,
+    ) -> FFI_Result<()>,
 
     // Evaluate and return a ScalarValues as protobuf bytes
-    pub evaluate: unsafe extern "C" fn(accumulator: &mut Self) -> FFIResult<SVec<u8>>,
+    pub evaluate: unsafe extern "C" fn(accumulator: &mut Self) -> FFI_Result<SVec<u8>>,
 
     pub size: unsafe extern "C" fn(accumulator: &Self) -> usize,
 
-    pub state: unsafe extern "C" fn(accumulator: &mut Self) -> FFIResult<SVec<SVec<u8>>>,
+    pub state: unsafe extern "C" fn(accumulator: &mut Self) -> FFI_Result<SVec<SVec<u8>>>,
 
     pub merge_batch: unsafe extern "C" fn(
         accumulator: &mut Self,
         states: SVec<WrappedArray>,
-    ) -> FFIResult<()>,
+    ) -> FFI_Result<()>,
 
     pub retract_batch: unsafe extern "C" fn(
         accumulator: &mut Self,
         values: SVec<WrappedArray>,
-    ) -> FFIResult<()>,
+    ) -> FFI_Result<()>,
 
     pub supports_retract_batch: bool,
 
@@ -104,7 +104,7 @@ impl FFI_Accumulator {
 unsafe extern "C" fn update_batch_fn_wrapper(
     accumulator: &mut FFI_Accumulator,
     values: SVec<WrappedArray>,
-) -> FFIResult<()> {
+) -> FFI_Result<()> {
     unsafe {
         let accumulator = accumulator.inner_mut();
 
@@ -120,7 +120,7 @@ unsafe extern "C" fn update_batch_fn_wrapper(
 
 unsafe extern "C" fn evaluate_fn_wrapper(
     accumulator: &mut FFI_Accumulator,
-) -> FFIResult<SVec<u8>> {
+) -> FFI_Result<SVec<u8>> {
     unsafe {
         let accumulator = accumulator.inner_mut();
 
@@ -128,7 +128,7 @@ unsafe extern "C" fn evaluate_fn_wrapper(
         let proto_result: datafusion_proto::protobuf::ScalarValue =
             sresult_return!((&scalar_result).try_into());
 
-        FFIResult::Ok(proto_result.encode_to_vec().into_iter().collect())
+        FFI_Result::Ok(proto_result.encode_to_vec().into_iter().collect())
     }
 }
 
@@ -138,7 +138,7 @@ unsafe extern "C" fn size_fn_wrapper(accumulator: &FFI_Accumulator) -> usize {
 
 unsafe extern "C" fn state_fn_wrapper(
     accumulator: &mut FFI_Accumulator,
-) -> FFIResult<SVec<SVec<u8>>> {
+) -> FFI_Result<SVec<SVec<u8>>> {
     unsafe {
         let accumulator = accumulator.inner_mut();
 
@@ -160,7 +160,7 @@ unsafe extern "C" fn state_fn_wrapper(
 unsafe extern "C" fn merge_batch_fn_wrapper(
     accumulator: &mut FFI_Accumulator,
     states: SVec<WrappedArray>,
-) -> FFIResult<()> {
+) -> FFI_Result<()> {
     unsafe {
         let accumulator = accumulator.inner_mut();
 
@@ -178,7 +178,7 @@ unsafe extern "C" fn merge_batch_fn_wrapper(
 unsafe extern "C" fn retract_batch_fn_wrapper(
     accumulator: &mut FFI_Accumulator,
     values: SVec<WrappedArray>,
-) -> FFIResult<()> {
+) -> FFI_Result<()> {
     unsafe {
         let accumulator = accumulator.inner_mut();
 

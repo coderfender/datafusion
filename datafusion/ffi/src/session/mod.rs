@@ -59,7 +59,7 @@ use crate::session::config::FFI_SessionConfig;
 use crate::udaf::FFI_AggregateUDF;
 use crate::udf::FFI_ScalarUDF;
 use crate::udwf::FFI_WindowUDF;
-use crate::util::FFIResult;
+use crate::util::FFI_Result;
 use crate::{df_result, sresult, sresult_return};
 
 pub mod config;
@@ -83,17 +83,17 @@ pub(crate) struct FFI_SessionRef {
 
     config: unsafe extern "C" fn(&Self) -> FFI_SessionConfig,
 
-    create_physical_plan: unsafe extern "C" fn(
-        &Self,
-        logical_plan_serialized: SVec<u8>,
-    )
-        -> FfiFuture<FFIResult<FFI_ExecutionPlan>>,
+    create_physical_plan:
+        unsafe extern "C" fn(
+            &Self,
+            logical_plan_serialized: SVec<u8>,
+        ) -> FfiFuture<FFI_Result<FFI_ExecutionPlan>>,
 
     create_physical_expr: unsafe extern "C" fn(
         &Self,
         expr_serialized: SVec<u8>,
         schema: WrappedSchema,
-    ) -> FFIResult<FFI_PhysicalExpr>,
+    ) -> FFI_Result<FFI_PhysicalExpr>,
 
     scalar_functions: unsafe extern "C" fn(&Self) -> SVec<(SString, FFI_ScalarUDF)>,
 
@@ -163,7 +163,7 @@ unsafe extern "C" fn config_fn_wrapper(session: &FFI_SessionRef) -> FFI_SessionC
 unsafe extern "C" fn create_physical_plan_fn_wrapper(
     session: &FFI_SessionRef,
     logical_plan_serialized: SVec<u8>,
-) -> FfiFuture<FFIResult<FFI_ExecutionPlan>> {
+) -> FfiFuture<FFI_Result<FFI_ExecutionPlan>> {
     unsafe {
         let runtime = session.runtime().clone();
         let session = session.clone();
@@ -188,7 +188,7 @@ unsafe extern "C" fn create_physical_expr_fn_wrapper(
     session: &FFI_SessionRef,
     expr_serialized: SVec<u8>,
     schema: WrappedSchema,
-) -> FFIResult<FFI_PhysicalExpr> {
+) -> FFI_Result<FFI_PhysicalExpr> {
     let codec: Arc<dyn LogicalExtensionCodec> = (&session.logical_codec).into();
     let session = session.inner();
 
@@ -201,7 +201,7 @@ unsafe extern "C" fn create_physical_expr_fn_wrapper(
     let physical_expr =
         sresult_return!(session.create_physical_expr(logical_expr, &schema));
 
-    FFIResult::Ok(physical_expr.into())
+    FFI_Result::Ok(physical_expr.into())
 }
 
 unsafe extern "C" fn scalar_functions_fn_wrapper(

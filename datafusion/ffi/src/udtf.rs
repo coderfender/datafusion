@@ -38,7 +38,7 @@ use crate::execution::FFI_TaskContextProvider;
 use crate::proto::logical_extension_codec::FFI_LogicalExtensionCodec;
 use crate::session::{FFI_SessionRef, ForeignSession};
 use crate::table_provider::FFI_TableProvider;
-use crate::util::FFIResult;
+use crate::util::FFI_Result;
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing a [`TableFunctionImpl`] across FFI boundaries.
@@ -51,15 +51,17 @@ pub struct FFI_TableFunction {
         since = "53.0.0",
         note = "See TableFunctionImpl::call deprecation note"
     )]
-    pub call:
-        unsafe extern "C" fn(udtf: &Self, args: SVec<u8>) -> FFIResult<FFI_TableProvider>,
+    pub call: unsafe extern "C" fn(
+        udtf: &Self,
+        args: SVec<u8>,
+    ) -> FFI_Result<FFI_TableProvider>,
 
     /// Equivalent to the [`TableFunctionImpl::call_with_args`].
     call_with_args: unsafe extern "C" fn(
         udtf: &Self,
         args: SVec<u8>,
         session: FFI_SessionRef,
-    ) -> FFIResult<FFI_TableProvider>,
+    ) -> FFI_Result<FFI_TableProvider>,
 
     pub logical_codec: FFI_LogicalExtensionCodec,
 
@@ -103,7 +105,7 @@ impl FFI_TableFunction {
 unsafe extern "C" fn call_fn_wrapper(
     udtf: &FFI_TableFunction,
     args: SVec<u8>,
-) -> FFIResult<FFI_TableProvider> {
+) -> FFI_Result<FFI_TableProvider> {
     let runtime = udtf.runtime();
     let udtf_inner = udtf.inner();
 
@@ -121,7 +123,7 @@ unsafe extern "C" fn call_fn_wrapper(
 
     #[expect(deprecated)]
     let table_provider = sresult_return!(udtf_inner.call(&args));
-    FFIResult::Ok(FFI_TableProvider::new_with_ffi_codec(
+    FFI_Result::Ok(FFI_TableProvider::new_with_ffi_codec(
         table_provider,
         false,
         runtime,
@@ -133,7 +135,7 @@ unsafe extern "C" fn call_with_args_wrapper(
     udtf: &FFI_TableFunction,
     args: SVec<u8>,
     session: FFI_SessionRef,
-) -> FFIResult<FFI_TableProvider> {
+) -> FFI_Result<FFI_TableProvider> {
     let runtime = udtf.runtime();
     let udtf_inner = udtf.inner();
 
@@ -162,7 +164,7 @@ unsafe extern "C" fn call_with_args_wrapper(
     let table_provider = sresult_return!(
         udtf_inner.call_with_args(TableFunctionArgs::new(&args, session))
     );
-    FFIResult::Ok(FFI_TableProvider::new_with_ffi_codec(
+    FFI_Result::Ok(FFI_TableProvider::new_with_ffi_codec(
         table_provider,
         false,
         runtime,

@@ -44,7 +44,7 @@ use crate::table_provider::FFI_TableProvider;
 use crate::udaf::FFI_AggregateUDF;
 use crate::udf::FFI_ScalarUDF;
 use crate::udwf::FFI_WindowUDF;
-use crate::util::FFIResult;
+use crate::util::FFI_Result;
 use crate::{df_result, sresult_return};
 
 /// A stable struct for sharing [`LogicalExtensionCodec`] across FFI boundaries.
@@ -57,47 +57,47 @@ pub struct FFI_LogicalExtensionCodec {
         buf: SSlice<u8>,
         table_ref: SStr,
         schema: WrappedSchema,
-    ) -> FFIResult<FFI_TableProvider>,
+    ) -> FFI_Result<FFI_TableProvider>,
 
     /// Encode a table provider into bytes.
     try_encode_table_provider: unsafe extern "C" fn(
         &Self,
         table_ref: SStr,
         node: FFI_TableProvider,
-    ) -> FFIResult<SVec<u8>>,
+    ) -> FFI_Result<SVec<u8>>,
 
     /// Decode bytes into a user defined scalar function.
     try_decode_udf: unsafe extern "C" fn(
         &Self,
         name: SStr,
         buf: SSlice<u8>,
-    ) -> FFIResult<FFI_ScalarUDF>,
+    ) -> FFI_Result<FFI_ScalarUDF>,
 
     /// Encode a user defined scalar function into bytes.
     try_encode_udf:
-        unsafe extern "C" fn(&Self, node: FFI_ScalarUDF) -> FFIResult<SVec<u8>>,
+        unsafe extern "C" fn(&Self, node: FFI_ScalarUDF) -> FFI_Result<SVec<u8>>,
 
     /// Decode bytes into a user defined aggregate function.
     try_decode_udaf: unsafe extern "C" fn(
         &Self,
         name: SStr,
         buf: SSlice<u8>,
-    ) -> FFIResult<FFI_AggregateUDF>,
+    ) -> FFI_Result<FFI_AggregateUDF>,
 
     /// Encode a user defined aggregate function into bytes.
     try_encode_udaf:
-        unsafe extern "C" fn(&Self, node: FFI_AggregateUDF) -> FFIResult<SVec<u8>>,
+        unsafe extern "C" fn(&Self, node: FFI_AggregateUDF) -> FFI_Result<SVec<u8>>,
 
     /// Decode bytes into a user defined window function.
     try_decode_udwf: unsafe extern "C" fn(
         &Self,
         name: SStr,
         buf: SSlice<u8>,
-    ) -> FFIResult<FFI_WindowUDF>,
+    ) -> FFI_Result<FFI_WindowUDF>,
 
     /// Encode a user defined window function into bytes.
     try_encode_udwf:
-        unsafe extern "C" fn(&Self, node: FFI_WindowUDF) -> FFIResult<SVec<u8>>,
+        unsafe extern "C" fn(&Self, node: FFI_WindowUDF) -> FFI_Result<SVec<u8>>,
 
     pub task_ctx_provider: FFI_TaskContextProvider,
 
@@ -149,7 +149,7 @@ unsafe extern "C" fn try_decode_table_provider_fn_wrapper(
     buf: SSlice<u8>,
     table_ref: SStr,
     schema: WrappedSchema,
-) -> FFIResult<FFI_TableProvider> {
+) -> FFI_Result<FFI_TableProvider> {
     let ctx = sresult_return!(codec.task_ctx());
     let runtime = codec.runtime().clone();
     let codec_inner = codec.inner();
@@ -163,7 +163,7 @@ unsafe extern "C" fn try_decode_table_provider_fn_wrapper(
         ctx.as_ref()
     ));
 
-    FFIResult::Ok(FFI_TableProvider::new_with_ffi_codec(
+    FFI_Result::Ok(FFI_TableProvider::new_with_ffi_codec(
         table_provider,
         true,
         runtime,
@@ -175,7 +175,7 @@ unsafe extern "C" fn try_encode_table_provider_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
     table_ref: SStr,
     node: FFI_TableProvider,
-) -> FFIResult<SVec<u8>> {
+) -> FFI_Result<SVec<u8>> {
     let table_ref = TableReference::from(table_ref.as_str());
     let table_provider: Arc<dyn TableProvider> = (&node).into();
     let codec = codec.inner();
@@ -187,26 +187,26 @@ unsafe extern "C" fn try_encode_table_provider_fn_wrapper(
         &mut bytes
     ));
 
-    FFIResult::Ok(bytes.into_iter().collect())
+    FFI_Result::Ok(bytes.into_iter().collect())
 }
 
 unsafe extern "C" fn try_decode_udf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
     name: SStr,
     buf: SSlice<u8>,
-) -> FFIResult<FFI_ScalarUDF> {
+) -> FFI_Result<FFI_ScalarUDF> {
     let codec = codec.inner();
 
     let udf = sresult_return!(codec.try_decode_udf(name.as_str(), buf.as_ref()));
     let udf = FFI_ScalarUDF::from(udf);
 
-    FFIResult::Ok(udf)
+    FFI_Result::Ok(udf)
 }
 
 unsafe extern "C" fn try_encode_udf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
     node: FFI_ScalarUDF,
-) -> FFIResult<SVec<u8>> {
+) -> FFI_Result<SVec<u8>> {
     let codec = codec.inner();
     let node: Arc<dyn ScalarUDFImpl> = (&node).into();
     let node = ScalarUDF::new_from_shared_impl(node);
@@ -214,25 +214,25 @@ unsafe extern "C" fn try_encode_udf_fn_wrapper(
     let mut bytes = Vec::new();
     sresult_return!(codec.try_encode_udf(&node, &mut bytes));
 
-    FFIResult::Ok(bytes.into_iter().collect())
+    FFI_Result::Ok(bytes.into_iter().collect())
 }
 
 unsafe extern "C" fn try_decode_udaf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
     name: SStr,
     buf: SSlice<u8>,
-) -> FFIResult<FFI_AggregateUDF> {
+) -> FFI_Result<FFI_AggregateUDF> {
     let codec_inner = codec.inner();
     let udaf = sresult_return!(codec_inner.try_decode_udaf(name.into(), buf.as_ref()));
     let udaf = FFI_AggregateUDF::from(udaf);
 
-    FFIResult::Ok(udaf)
+    FFI_Result::Ok(udaf)
 }
 
 unsafe extern "C" fn try_encode_udaf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
     node: FFI_AggregateUDF,
-) -> FFIResult<SVec<u8>> {
+) -> FFI_Result<SVec<u8>> {
     let codec = codec.inner();
     let udaf: Arc<dyn AggregateUDFImpl> = (&node).into();
     let udaf = AggregateUDF::new_from_shared_impl(udaf);
@@ -240,25 +240,25 @@ unsafe extern "C" fn try_encode_udaf_fn_wrapper(
     let mut bytes = Vec::new();
     sresult_return!(codec.try_encode_udaf(&udaf, &mut bytes));
 
-    FFIResult::Ok(bytes.into_iter().collect())
+    FFI_Result::Ok(bytes.into_iter().collect())
 }
 
 unsafe extern "C" fn try_decode_udwf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
     name: SStr,
     buf: SSlice<u8>,
-) -> FFIResult<FFI_WindowUDF> {
+) -> FFI_Result<FFI_WindowUDF> {
     let codec = codec.inner();
     let udwf = sresult_return!(codec.try_decode_udwf(name.into(), buf.as_ref()));
     let udwf = FFI_WindowUDF::from(udwf);
 
-    FFIResult::Ok(udwf)
+    FFI_Result::Ok(udwf)
 }
 
 unsafe extern "C" fn try_encode_udwf_fn_wrapper(
     codec: &FFI_LogicalExtensionCodec,
     node: FFI_WindowUDF,
-) -> FFIResult<SVec<u8>> {
+) -> FFI_Result<SVec<u8>> {
     let codec = codec.inner();
     let udwf: Arc<dyn WindowUDFImpl> = (&node).into();
     let udwf = WindowUDF::new_from_shared_impl(udwf);
@@ -266,7 +266,7 @@ unsafe extern "C" fn try_encode_udwf_fn_wrapper(
     let mut bytes = Vec::new();
     sresult_return!(codec.try_encode_udwf(&udwf, &mut bytes));
 
-    FFIResult::Ok(bytes.into_iter().collect())
+    FFI_Result::Ok(bytes.into_iter().collect())
 }
 
 unsafe extern "C" fn release_fn_wrapper(provider: &mut FFI_LogicalExtensionCodec) {
