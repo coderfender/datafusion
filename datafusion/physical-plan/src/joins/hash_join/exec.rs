@@ -1459,8 +1459,8 @@ impl ExecutionPlan for HashJoinExec {
                 let right_stats = self.right.partition_statistics(Some(partition))?;
 
                 estimate_join_statistics(
-                    (*left_stats).clone(),
-                    (*right_stats).clone(),
+                    Arc::unwrap_or_clone(left_stats),
+                    Arc::unwrap_or_clone(right_stats),
                     &self.on,
                     &self.join_type,
                     &self.join_schema,
@@ -1474,8 +1474,8 @@ impl ExecutionPlan for HashJoinExec {
                 let right_stats = self.right.partition_statistics(Some(partition))?;
 
                 estimate_join_statistics(
-                    (*left_stats).clone(),
-                    (*right_stats).clone(),
+                    Arc::unwrap_or_clone(left_stats),
+                    Arc::unwrap_or_clone(right_stats),
                     &self.on,
                     &self.join_type,
                     &self.join_schema,
@@ -1491,8 +1491,8 @@ impl ExecutionPlan for HashJoinExec {
                 let left_stats = self.left.partition_statistics(None)?;
                 let right_stats = self.right.partition_statistics(None)?;
                 estimate_join_statistics(
-                    (*left_stats).clone(),
-                    (*right_stats).clone(),
+                    Arc::unwrap_or_clone(left_stats),
+                    Arc::unwrap_or_clone(right_stats),
                     &self.on,
                     &self.join_type,
                     &self.join_schema,
