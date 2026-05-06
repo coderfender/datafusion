@@ -15,10 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-//! Criterion benchmarks for Hash Join with RightSemi/RightAnti
-//!
-//! These benchmarks measure the hash join kernel for semi/anti joins
-//! with Int32 keys, which can use roaring bitmap optimization.
+//! Criterion benchmarks for Hash Join with RightSemi/RightAnti joins with Int32 keys.
 
 use std::sync::Arc;
 
@@ -33,7 +30,7 @@ use datafusion_physical_plan::joins::{HashJoinExec, PartitionMode, utils::JoinOn
 use datafusion_physical_plan::test::TestMemoryExec;
 use tokio::runtime::Runtime;
 
-/// Build RecordBatches with Int32 keys (for roaring optimization).
+/// Build RecordBatches with Int32 keys.
 ///
 /// Schema: (key: Int32, data: Int32, payload: Utf8)
 ///

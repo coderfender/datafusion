@@ -302,6 +302,8 @@ const HASH_QUERIES: &[HashJoinQuery] = &[
         probe_size: "60M",
     },
     // RightSemi Join benchmarks with Int32 keys
+    // Fanout: N/A for semi joins (returns at most one row per probe key)
+    //
     // Q16: RightSemi, Small build (25 rows), 100% Hit rate
     // Build Side: nation (25 rows) | Probe Side: customer (1.5M rows)
     HashJoinQuery {
@@ -342,6 +344,8 @@ const HASH_QUERIES: &[HashJoinQuery] = &[
         probe_size: "60M_RightSemi",
     },
     // RightAnti Join benchmarks with Int32 keys
+    // Fanout: N/A for anti joins (returns at most one row per probe key)
+    //
     // Q19: RightAnti, Small build (25 rows), 100% Hit rate (no output)
     // Build Side: nation (25 rows) | Probe Side: customer (1.5M rows)
     HashJoinQuery {
@@ -401,7 +405,9 @@ impl RunOpt {
             None => 1..=HASH_QUERIES.len(),
         };
 
-        let config = self.common.config()?;
+        let mut config = self.common.config()?;
+        // Disable join reordering to ensure the optimizer doesn't swap join sides
+        config.options_mut().optimizer.join_reordering = false;
         let rt = self.common.build_runtime()?;
         let ctx = SessionContext::new_with_config_rt(config, rt);
 
